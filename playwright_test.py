@@ -8,8 +8,11 @@
 # @Software: PyCharm
 import os.path
 import time
+import traceback
+
 import aiohttp
 import asyncio
+import hashlib
 from playwright.async_api import async_playwright
 from opencv_test import get_notch_location, get_track, get_slide_track,get_track_old
 
@@ -19,7 +22,8 @@ async def download_image(url, _type):
         file_suffix = 'jpeg'
     elif _type == 'hx':
         file_suffix = 'png'
-    file_name = str(time.time()).replace('.', '')
+    # file_name = str(time.time()).replace('.', '')
+    file_name = hashlib.md5(url.encode('utf-8')).hexdigest()
     file_path = os.path.join('temp', file_name + '.' + file_suffix)
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -41,12 +45,16 @@ async def handle_login():
         await page.goto("https://fxg.jinritemai.com/login")
         await page.wait_for_selector('span.account-center-code-text')
         await page.locator("rect").nth(1).click()
-        await page.get_by_text("邮箱登录", exact=True).click()
-        await page.get_by_placeholder("请输入邮箱").click()
-        await page.get_by_placeholder("请输入邮箱").fill("1208879081@qq.com")
-        await page.get_by_placeholder("密码").click()
-        await page.get_by_placeholder("密码").fill("JIAOkai123.")
-        await page.get_by_role("button", name="登录").click()
+        # await page.get_by_text("邮箱登录", exact=True).click()
+        # await page.get_by_placeholder("请输入邮箱").click()
+        # await page.get_by_placeholder("请输入邮箱").fill("1208879081@qq.com")
+        # await page.get_by_placeholder("密码").click()
+        # await page.get_by_placeholder("密码").fill("JIAOkai123.")
+        # await page.get_by_role("button", name="登录").click()
+        await page.get_by_placeholder("请输入手机号码").click()
+        await page.get_by_placeholder("请输入手机号码").fill("18810362350")
+        await page.get_by_text("发送验证码").click()
+        # todo 等待获取验证码
         for i in range(10):
             try:
                 await page.wait_for_selector(selector='img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx')
@@ -70,7 +78,7 @@ async def handle_login():
                 for track in tracks:
                     # 循环鼠标按照轨迹移动
                     # strps 是控制单次移动速度的比例是1/10 默认是1 相当于 传入的这个距离不管多远0.1秒钟移动完 越大越慢
-                    await page.mouse.move(x + track[0], 0, steps=10)
+                    await page.mouse.move(x + track, 0, steps=10)
                     x += track
                 # 移动结束鼠标抬起
                 await page.wait_for_timeout(500)
@@ -78,7 +86,8 @@ async def handle_login():
                 await page.wait_for_selector('div.account-center-code-captcha.active', timeout=3000)
                 break
             except Exception as e:
-                await page.wait_for_timeout(10000)
+                await page.wait_for_timeout(1000)
+                print(traceback.format_exc())
                 print(e)
         # todo 接收验证码
         await page.wait_for_timeout(30000)
@@ -217,7 +226,7 @@ async def shop_user_assets():
 async def shop_orders_info_crawl():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/1208879081.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
@@ -227,6 +236,7 @@ async def shop_orders_info_crawl():
             # order_payment_info_text = await (await shop_order_info.query_selector('td.auxo-table-cell')).text_content()
             order_payment_info_text = await shop_order_info.text_content()
             print(order_payment_info_text)
+        await page.wait_for_timeout(2000000)
         await context.close()
         await browser.close()
 

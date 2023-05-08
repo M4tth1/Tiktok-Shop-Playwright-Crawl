@@ -125,6 +125,7 @@ def get_track_old(hx_path, bg_path, bg_length):  # distance为传入的总距离
         current += move
         # 加入轨迹
         track.append(round(move))
+    print(track)
     return track
 
 
