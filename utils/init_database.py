@@ -7,7 +7,39 @@
 # @Project : tiktok_crawl
 # @Software: PyCharm
 import pymysql
-# 创建抖店店铺信息数据库表,具体表的字段根据抖店数据字段表来定,具体字段名和类型如下，唯一键为shopName和shopId：
+from dbutils.pooled_db import PooledDB
+
+# 创建mysql连接池，后面的函数连接都使用连接池
+Pool = PooledDB(
+    creator=pymysql,  # 使用链接数据库的模块
+    maxconnections=6,  # 连接池允许的最大连接数，0和None表示不限制连接数
+    mincached=2,  # 初始化时，链接池中至少创建的空闲的链接，0表示不创建
+    maxcached=5,  # 链接池中最多闲置的链接，0和None不限制
+    maxshared=3,  # 链接池中最多共享的链接数量，0和None表示全部共享。
+    blocking=True,  # 连接池中如果没有可用连接后，是否阻塞等待。True，等待；False，不等待然后报错
+    maxusage=None,  # 一个链接最多被重复使用的次数，None表示无限制
+    # setsession=[],  # 开始会话前执行的命令列表。如：["set datestyle to ...", "set time zone ..."]
+    # ping=0,  # ping MySQL服务端，检查是否服务可用。
+    host='localhost',
+    port=3306,
+    user='root',
+    password='6468467495',
+    database='mysql',
+)
+
+
+# 查数据库所有表名
+def show_tables():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    cursor.execute('show tables')
+    tables = cursor.fetchall()
+    print(tables)
+    cursor.close()
+    conn.close()
+
+# 创建抖店店铺信息数据库表,具体表的字段根据抖店数据字段表来定,具体字段名和类型如下，唯一键为shopName和shopId,其他数据库的外键为shopId,记得创建时把字段名改为下划线连接：
+# 数据库名：tkShopBasicInfoDto 店铺基本信息
 # tiktokBindStatus	抖音账号绑定状态	string
 # firmApproveStatus	企业号类型	string
 # tiktokBindDate	抖音账号绑定时间	string(date-time)
@@ -24,11 +56,15 @@ import pymysql
 # opeAdminName	经营者姓名	string
 # usualIllegalPoints	一般违规积分	number
 # opeAddress	经营地址	string
+
+# 数据库名：kScoreInfo	店铺体验分
 # total	体验分总分	number
 # service	服务体验分	number
 # goods	商品体验分	number
 # logistics	物流体验分	number
 # scoreTime	打分时间	string(date-time)
+
+# 数据库名：tkCounterpartsRank	同行体验分比较
 # total	体验分总分比较	number
 # service	服务体验分比较	number
 # cxOpeScore	持续经营分	number
@@ -36,6 +72,8 @@ import pymysql
 # logistics	物流体验分比较	number
 # updateTime	更新时间	string(date-time)
 # szDisputeRate	纠纷商责率	number
+
+# 数据库名：userAssets	用户资产
 # period	数据周期	string
 # amount	用户成交金额	number
 # avgAmt	用户客单价	number
@@ -45,7 +83,26 @@ import pymysql
 # userCounts	用户总数	integer(int32)
 # refundAmt	用户退款金额	number
 
+# 数据库名： tkShopMonthlyBillInfos	店铺月账单
+# totalIncome	总收入	number
+# counts	明细笔数	integer(int32)
+# endBalance	期末余额	number
+# totalExpenses	总支出	number
+# balanceChange	余额变化	number
+# updateTime	更新时间	string
+# beginBalance	期初余额	number
+
+# 数据库名： tkShopDailyBillInfos	店铺日账单
+# totalIncome	总收入	number
+# counts	明细笔数	integer(int32)
+# endBalance	期末余额	number
+# totalExpenses	总支出	number
+# balanceChange	余额变化	number
+# updateTime	更新时间	string(date-time)
+# beginBalance	期初余额	number
+
 # 创建抖店店铺订单信息数据表,具体表的字段根据抖店数据字段表来定,具体字段名和类型如下：
+# 数据库名：tkShopNoClearingInfos	待结算订单
 # paymentAmt	支付金额	number
 # preClearingAmt	预结算金额	number
 # orderNo	订单编号	string
@@ -57,6 +114,8 @@ import pymysql
 # updateTime	更新时间	string(date-time)
 # preClearingDate	预结算时间	string(date-time)
 # orderDate	下单时间	string(date-time)
+
+# 数据库名：tkOrderInfos	订单信息
 # amount	支付金额	number
 # orderNo	订单编号	string
 # quantity	数量	integer(int32)
@@ -75,177 +134,229 @@ import pymysql
 # phone	手机号	string
 # code	验证码	string
 # send_time	发送时间	string(date-time)
+# 接下来根据上述注释创建数据库
 
-def create_table():
-    conn = pymysql.connect(host='localhost',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql',
-                           charset='utf8mb4')
+
+# 创建抖店店铺信息数据库表,shopName和shopId为唯一键
+def create_tk_shop_basic_info():
+    conn = Pool.connection()
     cursor = conn.cursor()
-    shop_info_sql = '''
-    CREATE TABLE IF NOT EXISTS `tiktok_shop_info`(
-    `id` INT UNSIGNED AUTO_INCREMENT,
-    `tiktokBindStatus` VARCHAR(255) NOT NULL,
-    `firmApproveStatus` VARCHAR(255) NOT NULL,
-    `tiktokBindDate` VARCHAR(255) NOT NULL,
-    `shopName` VARCHAR(255) NOT NULL,
-    `opeAdminIdNo` VARCHAR(255) NOT NULL,
-    `opeAdminIdDeadline` VARCHAR(255) NOT NULL,
-    `shopStatus` VARCHAR(255) NOT NULL,
-    `seriousIllegalPoints` INT NOT NULL,
-    `firmName` VARCHAR(255) NOT NULL,
-    `uscCode` VARCHAR(255) NOT NULL,
-    `shopId` VARCHAR(255) NOT NULL,
-    `shopType` VARCHAR(255) NOT NULL,
-    `opeAdminIdType` VARCHAR(255) NOT NULL,
-    `opeAdminName` VARCHAR(255) NOT NULL,
-    `usualIllegalPoints` INT NOT NULL,
-    `opeAddress` VARCHAR(255) NOT NULL,
-    `total` INT NOT NULL,
-    `service` INT NOT NULL,
-    `goods` INT NOT NULL,
-    `logistics` INT NOT NULL,
-    `scoreTime` VARCHAR(255) NOT NULL,
-    `totalCompare` INT NOT NULL,
-    `serviceCompare` INT NOT NULL,
-    `cxOpeScore` INT NOT NULL,
-    `goodsCompare` INT NOT NULL,
-    `logisticsCompare` INT NOT NULL,
-    `updateTime` DATETIME NOT NULL,
-    `szDisputeRate` INT NOT NULL,
-    `period` VARCHAR(255) NOT NULL,
-    `amount` INT NOT NULL,
-    `avgAmt` INT NOT NULL,
-    `refundUsers` INT NOT NULL,
-    `userDealCounts` INT NOT NULL,
-    `visit` INT NOT NULL,
-    `userCounts` INT NOT NULL,
-    `refundAmt` INT NOT NULL,
-    PRIMARY KEY (shopName, shopId)
-    )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkShopBasicInfoDto (
+    tiktokBindStatus VARCHAR(255),
+    firmApproveStatus VARCHAR(255),
+    tiktokBindDate VARCHAR(255),
+    shopName VARCHAR(255),
+    opeAdminIdNo VARCHAR(255),
+    opeAdminIdDeadline VARCHAR(255),
+    shopStatus VARCHAR(255),
+    seriousIllegalPoints VARCHAR(255),
+    firmName VARCHAR(255),
+    uscCode VARCHAR(255),
+    shopId VARCHAR(255),
+    shopType VARCHAR(255),
+    opeAdminIdType VARCHAR(255),
+    opeAdminName VARCHAR(255),
+    usualIllegalPoints VARCHAR(255),
+    opeAddress VARCHAR(255),
+    PRIMARY KEY (shopId),
+    UNIQUE (shopName)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
-    order_info_sql = '''
-    CREATE TABLE IF NOT EXISTS `tiktok_order_info`(
-    `id` INT UNSIGNED AUTO_INCREMENT,
-    `paymentAmt` INT NOT NULL,
-    `preClearingAmt` INT NOT NULL,
-    `orderNo` VARCHAR(255) NOT NULL,
-    `goodsId` VARCHAR(255) NOT NULL,
-    `ordersSubNo` VARCHAR(255) NOT NULL,
-    `orderStatus` VARCHAR(255) NOT NULL,
-    `refundStatus` VARCHAR(255) NOT NULL,
-    `finishDate` VARCHAR(255) NOT NULL,
-    `updateTime` VARCHAR(255) NOT NULL,
-    `preClearingDate` VARCHAR(255) NOT NULL,
-    `orderDate` VARCHAR(255) NOT NULL,
-    `amount` INT NOT NULL,
-    `quantity` INT NOT NULL,
-    `specification` VARCHAR(255) NOT NULL,
-    `afterSalesStatus` VARCHAR(255) NOT NULL,
-    `tags` VARCHAR(255) NOT NULL,
-    `price` INT NOT NULL,
-    `name` VARCHAR(255) NOT NULL,
-    `paymentMethod` VARCHAR(255) NOT NULL,
-    `category` VARCHAR(255) NOT NULL,
-    PRIMARY KEY (`orderNo`)
-    )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    '''
-    phone_code_sql = '''
-    CREATE TABLE IF NOT EXISTS `tiktok_phone_code`(
-    `id` INT UNSIGNED AUTO_INCREMENT,
-    `phone` VARCHAR(255) NOT NULL,
-    `code` VARCHAR(255) NOT NULL,
-    `send_time` VARCHAR(255) NOT NULL,
-    PRIMARY KEY (`phone`)
-    )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    '''
-    cursor.execute(shop_info_sql)
-    cursor.execute(order_info_sql)
-    cursor.execute(phone_code_sql)
-    conn.commit()
+    cursor.execute(sql)
     cursor.close()
     conn.close()
 
+
+def create_k_score_info():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS kScoreInfo (
+    total VARCHAR(255),
+    service VARCHAR(255),
+    goods VARCHAR(255),
+    logistics VARCHAR(255),
+    scoreTime VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_tk_counterparts_rank():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkCounterpartsRank (
+    total VARCHAR(255),
+    service VARCHAR(255),
+    cxOpeScore VARCHAR(255),
+    goods VARCHAR(255),
+    logistics VARCHAR(255),
+    updateTime VARCHAR(255),
+    szDisputeRate VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_user_assets():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS userAssets (
+    period VARCHAR(255),
+    amount VARCHAR(255),
+    avgAmt VARCHAR(255),
+    refundUsers VARCHAR(255),
+    userDealCounts VARCHAR(255),
+    visit VARCHAR(255),
+    userCounts VARCHAR(255),
+    refundAmt VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_tk_shop_monthly_bill_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkShopMonthlyBillInfos (
+    totalIncome VARCHAR(255),
+    counts VARCHAR(255),
+    endBalance VARCHAR(255),
+    totalExpenses VARCHAR(255),
+    balanceChange VARCHAR(255),
+    updateTime VARCHAR(255),
+    beginBalance VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_tk_shop_daily_bill_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkShopDailyBillInfos (
+    totalIncome VARCHAR(255),
+    counts VARCHAR(255),
+    endBalance VARCHAR(255),
+    totalExpenses VARCHAR(255),
+    balanceChange VARCHAR(255),
+    updateTime VARCHAR(255),
+    beginBalance VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_tk_shop_no_clearing_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkShopNoClearingInfos (
+    totalIncome VARCHAR(255),
+    counts VARCHAR(255),
+    endBalance VARCHAR(255),
+    totalExpenses VARCHAR(255),
+    balanceChange VARCHAR(255),
+    updateTime VARCHAR(255),
+    beginBalance VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+def create_tk_shop_clearing_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
+    totalIncome VARCHAR(255),
+    counts VARCHAR(255),
+    endBalance VARCHAR(255),
+    totalExpenses VARCHAR(255),
+    balanceChange VARCHAR(255),
+    updateTime VARCHAR(255),
+    beginBalance VARCHAR(255),
+    shopId VARCHAR(255),
+    PRIMARY KEY (shopId),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+# 删除上述创建的所有表
 def drop_table():
-    conn = pymysql.connect(host='localhost',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql',
-                           charset='utf8mb4')
+    conn = Pool.connection()
     cursor = conn.cursor()
-    shop_info_sql = '''
-    DROP TABLE IF EXISTS `tiktok_shop_info`;
+    sql = '''
+    DROP TABLE IF EXISTS tkShopBasicInfoDto;
+    DROP TABLE IF EXISTS kScoreInfo;
+    DROP TABLE IF EXISTS tkCounterpartsRank;
+    DROP TABLE IF EXISTS userAssets;
+    DROP TABLE IF EXISTS tkShopMonthlyBillInfos;
+    DROP TABLE IF EXISTS tkShopDailyBillInfos;
+    DROP TABLE IF EXISTS tkShopNoClearingInfos;
+    DROP TABLE IF EXISTS tkShopClearingInfos;
     '''
-    order_info_sql = '''
-    DROP TABLE IF EXISTS `tiktok_order_info`;
-    '''
-    phone_code_sql = '''
-    DROP TABLE IF EXISTS `tiktok_phone_code`;
-    '''
-    cursor.execute(shop_info_sql)
-    cursor.execute(order_info_sql)
-    cursor.execute(phone_code_sql)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-# insert ignore into users(user_id,user_name) values("111","naruto"),("222","sasuke") on duplicate key update user_name=values(user_name);根据此sql写出上述三个sql的插入语句
-
-def insert_shop_info(params):
-    conn = pymysql.connect(host='localhost',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql',
-                           charset='utf8mb4')
-    cursor = conn.cursor()
-    shop_info_sql = '''
-    INSERT IGNORE INTO `tiktok_shop_info`(`tiktokBindStatus`, `firmApproveStatus`, `tiktokBindDate`, `shopName`, `opeAdminIdNo`, `opeAdminIdDeadline`, `shopStatus`, `seriousIllegalPoints`, `firmName`, `uscCode`, `shopId`, `shopType`, `opeAdminIdType`, `opeAdminName`, `usualIllegalPoints`, `opeAddress`, `total`, `service`, `goods`, `logistics`, `scoreTime`, `totalCompare`, `serviceCompare`, `cxOpeScore`, `goodsCompare`, `logisticsCompare`, `updateTime`, `szDisputeRate`, `period`, `amount`, `avgAmt`, `refundUsers`, `userDealCounts`, `visit`, `userCounts`, `refundAmt`) VALUES
-    ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', %d, %d, %d, %d, '%s', %d, %d, %d, %d, %d, '%s', %d, '%s', %d, %d, %d, %d, %d, %d, %d) on duplicate key update `tiktokBindStatus`='%s', `firmApproveStatus`='%s', `tiktokBindDate`='%s', `opeAdminIdNo`='%s', `opeAdminIdDeadline`='%s', `shopStatus`='%s', `seriousIllegalPoints`=%d, `firmName`='%s', `uscCode`='%s', `shopType`='%s', `opeAdminIdType`='%s', `opeAdminName`='%s', `usualIllegalPoints`=%d, `opeAddress`='%s', `total`=%d, `service`=%d, `goods`=%d, `logistics`=%d, `scoreTime`='%s', `totalCompare`=%d, `serviceCompare`=%d, `cxOpeScore`=%d, `goodsCompare`=%d, `logisticsCompare`=%d, `updateTime`='%s', `szDisputeRate`=%d, `period`='%s', `amount`=%d, `avgAmt`=%d, `refundUsers`=%d, `userDealCounts`=%d, `visit`=%d, `userCounts`=%d, `refundAmt`=%d;
-    '''
-    cursor.execute(shop_info_sql, params)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-def insert_order_info(params):
-    conn = pymysql.connect(host='localhost',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql',
-                           charset='utf8mb4')
-    cursor = conn.cursor()
-    order_info_sql = '''
-    INSERT IGNORE INTO `tiktok_order_info`(`paymentAmt`, `preClearingAmt`, `orderNo`, `goodsId`, `ordersSubNo`, `orderStatus`, `refundStatus`, `finishDate`, `updateTime`, `preClearingDate`, `orderDate`, `amount`, `quantity`, `specification`, `afterSalesStatus`, `tags`, `price`, `name`, `paymentMethod`, `category`) VALUES
-    (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s') on duplicate key update `paymentAmt`=%d, `preClearingAmt`=%d, `goodsId`='%s', `ordersSubNo`='%s', `orderStatus`='%s', `refundStatus`='%s', `finishDate`='%s', `updateTime`='%s', `preClearingDate`='%s', `orderDate`='%s', `amount`=%d, `quantity`=%d, `specification`='%s', `afterSalesStatus`='%s', `tags`='%s', `price`=%d, `name`='%s', `paymentMethod`='%s', `category`='%s';
-    '''
-    cursor.execute(order_info_sql, params)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
-def insert_phone_code(params):
-    conn = pymysql.connect(host='localhost',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql',
-                           charset='utf8mb4')
-    cursor = conn.cursor()
-    phone_code_sql = '''
-    INSERT IGNORE INTO `tiktok_phone_code`(`phone`, `code`, `send_time`) VALUES
-    ('%s', '%s', '%s') on duplicate key update `code`='%s', `send_time`='%s';
-    '''
-    cursor.execute(phone_code_sql, params)
-    conn.commit()
+    cursor.execute(sql)
     cursor.close()
     conn.close()
 
 
 if __name__ == '__main__':
-    create_table()
+    # create_table()
+    # create_tk_shop_basic_info()
+    # create_k_score_info()
+    # create_tk_counterparts_rank()
+    # create_user_assets()
+    # create_tk_shop_monthly_bill_infos()
+    # create_tk_shop_daily_bill_infos()
+    # create_tk_shop_no_clearing_infos()
+    # create_tk_shop_clearing_infos()
+    show_tables()
+
+

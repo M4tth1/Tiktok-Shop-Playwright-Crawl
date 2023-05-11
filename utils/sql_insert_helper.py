@@ -1,0 +1,399 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Time    : 2023/5/5 21:58
+# @Author  : fuganchen
+# @Site    : 
+# @File    : sql_insert_helper.py
+# @Project : tiktok_crawl
+# @Software: PyCharm
+import asyncio
+
+import pymysql
+import aiomysql
+from dbutils.pooled_db import PooledDB
+# python连接mysql的一些操作，需要用异步aiomysql实现
+
+
+# 创建mysql连接池，后面的函数连接都使用连接池
+async def create_pool():
+    pool = await aiomysql.create_pool(host='127.0.0.1', port=3306, user='root', password='6468467495', db='mysql', minsize=1, maxsize=10)
+    return pool
+
+
+#关闭连接池
+async def close_pool(pool):
+    pool.close()
+    await pool.wait_closed()
+
+
+# 下面根据数据库建表的sql语句来完成插入数据的函数，数据使用参数化。遇到unique时，使用更新操作，遇到外键时，使用查询操作，遇到其他时，使用插入操作
+# 插入店铺基本信息，建表sql如下
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkShopBasicInfoDto (
+#     tiktokBindStatus VARCHAR(255),
+#     firmApproveStatus VARCHAR(255),
+#     tiktokBindDate VARCHAR(255),
+#     shopName VARCHAR(255),
+#     opeAdminIdNo VARCHAR(255),
+#     opeAdminIdDeadline VARCHAR(255),
+#     shopStatus VARCHAR(255),
+#     seriousIllegalPoints VARCHAR(255),
+#     firmName VARCHAR(255),
+#     uscCode VARCHAR(255),
+#     shopId VARCHAR(255),
+#     shopType VARCHAR(255),
+#     opeAdminIdType VARCHAR(255),
+#     opeAdminName VARCHAR(255),
+#     usualIllegalPoints VARCHAR(255),
+#     opeAddress VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     UNIQUE (shopName)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_basic_info(pool, data):
+    sql = '''
+        INSERT INTO tkShopBasicInfoDto (
+        tiktokBindStatus,
+        firmApproveStatus,
+        tiktokBindDate,
+        shopName,
+        opeAdminIdNo,
+        opeAdminIdDeadline,
+        shopStatus,
+        seriousIllegalPoints,
+        firmName,
+        uscCode,
+        shopId,
+        shopType,
+        opeAdminIdType,
+        opeAdminName,
+        usualIllegalPoints,
+        opeAddress
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        tiktokBindStatus = VALUES(tiktokBindStatus),
+        firmApproveStatus = VALUES(firmApproveStatus),
+        tiktokBindDate = VALUES(tiktokBindDate),
+        opeAdminIdNo = VALUES(opeAdminIdNo),
+        opeAdminIdDeadline = VALUES(opeAdminIdDeadline),
+        shopStatus = VALUES(shopStatus),
+        seriousIllegalPoints = VALUES(seriousIllegalPoints),
+        firmName = VALUES(firmName),
+        uscCode = VALUES(uscCode),
+        shopType = VALUES(shopType),
+        opeAdminIdType = VALUES(opeAdminIdType),
+        opeAdminName = VALUES(opeAdminName),
+        usualIllegalPoints = VALUES(usualIllegalPoints),
+        opeAddress = VALUES(opeAddress)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+# 插入店铺体验分sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS kScoreInfo (
+#     total VARCHAR(255),
+#     service VARCHAR(255),
+#     goods VARCHAR(255),
+#     logistics VARCHAR(255),
+#     scoreTime VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_score_info(pool, data):
+    sql = '''
+        INSERT INTO kScoreInfo (
+        total,
+        service,
+        goods,
+        logistics,
+        scoreTime,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        total = VALUES(total),
+        service = VALUES(service),
+        goods = VALUES(goods),
+        logistics = VALUES(logistics),
+        scoreTime = VALUES(scoreTime)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+# 插入同行体验分sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkCounterpartsRank (
+#     total VARCHAR(255),
+#     service VARCHAR(255),
+#     cxOpeScore VARCHAR(255),
+#     goods VARCHAR(255),
+#     logistics VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     szDisputeRate VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_counterparts_rank(pool, data):
+    sql = '''
+        INSERT INTO tkCounterpartsRank (
+        total,
+        service,
+        cxOpeScore,
+        goods,
+        logistics,
+        updateTime,
+        szDisputeRate,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        total = VALUES(total),
+        service = VALUES(service),
+        cxOpeScore = VALUES(cxOpeScore),
+        goods = VALUES(goods),
+        logistics = VALUES(logistics),
+        updateTime = VALUES(updateTime),
+        szDisputeRate = VALUES(szDisputeRate)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+# 插入用户资产sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS userAssets (
+#     period VARCHAR(255),
+#     amount VARCHAR(255),
+#     avgAmt VARCHAR(255),
+#     refundUsers VARCHAR(255),
+#     userDealCounts VARCHAR(255),
+#     visit VARCHAR(255),
+#     userCounts VARCHAR(255),
+#     refundAmt VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_user_assets(pool, data):
+    sql = '''
+        INSERT INTO userAssets (
+        period,
+        amount,
+        avgAmt,
+        refundUsers,
+        userDealCounts,
+        visit,
+        userCounts,
+        refundAmt,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        period = VALUES(period),
+        amount = VALUES(amount),
+        avgAmt = VALUES(avgAmt),
+        refundUsers = VALUES(refundUsers),
+        userDealCounts = VALUES(userDealCounts),
+        visit = VALUES(visit),
+        userCounts = VALUES(userCounts),
+        refundAmt = VALUES(refundAmt)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+# 插入店铺月账单sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkShopMonthlyBillInfos (
+#     totalIncome VARCHAR(255),
+#     counts VARCHAR(255),
+#     endBalance VARCHAR(255),
+#     totalExpenses VARCHAR(255),
+#     balanceChange VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     beginBalance VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_month_bill(pool, data):
+    sql = '''
+        INSERT INTO tkShopMonthlyBillInfos (
+        totalIncome,
+        counts,
+        endBalance,
+        totalExpenses,
+        balanceChange,
+        updateTime,
+        beginBalance,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        totalIncome = VALUES(totalIncome),
+        counts = VALUES(counts),
+        endBalance = VALUES(endBalance),
+        totalExpenses = VALUES(totalExpenses),
+        balanceChange = VALUES(balanceChange),
+        updateTime = VALUES(updateTime),
+        beginBalance = VALUES(beginBalance)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+# 插入店铺日账单sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkShopDailyBillInfos (
+#     totalIncome VARCHAR(255),
+#     counts VARCHAR(255),
+#     endBalance VARCHAR(255),
+#     totalExpenses VARCHAR(255),
+#     balanceChange VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     beginBalance VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_daily_bill(pool, data):
+    sql = '''
+        INSERT INTO tkShopDailyBillInfos (
+        totalIncome,
+        counts,
+        endBalance,
+        totalExpenses,
+        balanceChange,
+        updateTime,
+        beginBalance,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        totalIncome = VALUES(totalIncome),
+        counts = VALUES(counts),
+        endBalance = VALUES(endBalance),
+        totalExpenses = VALUES(totalExpenses),
+        balanceChange = VALUES(balanceChange),
+        updateTime = VALUES(updateTime),
+        beginBalance = VALUES(beginBalance)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+# 插入待结算订单sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkShopNoClearingInfos (
+#     totalIncome VARCHAR(255),
+#     counts VARCHAR(255),
+#     endBalance VARCHAR(255),
+#     totalExpenses VARCHAR(255),
+#     balanceChange VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     beginBalance VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_no_clearing(pool, data):
+    sql = '''
+        INSERT INTO tkShopNoClearingInfos (
+        totalIncome,
+        counts,
+        endBalance,
+        totalExpenses,
+        balanceChange,
+        updateTime,
+        beginBalance,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        totalIncome = VALUES(totalIncome),
+        counts = VALUES(counts),
+        endBalance = VALUES(endBalance),
+        totalExpenses = VALUES(totalExpenses),
+        balanceChange = VALUES(balanceChange),
+        updateTime = VALUES(updateTime),
+        beginBalance = VALUES(beginBalance)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+# 插入结算订单sql
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
+#     totalIncome VARCHAR(255),
+#     counts VARCHAR(255),
+#     endBalance VARCHAR(255),
+#     totalExpenses VARCHAR(255),
+#     balanceChange VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     beginBalance VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (shopId),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_shop_clearing(pool, data):
+    sql = '''
+        INSERT INTO tkShopClearingInfos (
+        totalIncome,
+        counts,
+        endBalance,
+        totalExpenses,
+        balanceChange,
+        updateTime,
+        beginBalance,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        totalIncome = VALUES(totalIncome),
+        counts = VALUES(counts),
+        endBalance = VALUES(endBalance),
+        totalExpenses = VALUES(totalExpenses),
+        balanceChange = VALUES(balanceChange),
+        updateTime = VALUES(updateTime),
+        beginBalance = VALUES(beginBalance)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+# 写一个测试插入的函数
+async def test_insert():
+    pool = await create_pool()
+    test_data = [
+        (1, 1, '2022-01-01', 'Shop A', '123456', '2023-01-01', 1, 0, 'Firm A', 'USC123', 1, 1, 1, 'John Smith', 0,
+         '123 Main St'),
+        (0, 1, '2022-02-01', 'Shop B', '789012', '2023-02-01', 0, 10, 'Firm B', 'USC456', 2, 2, 2, 'Jane Doe', 5,
+         '456 Elm St')
+    ]
+    await insert_shop_basic_info(pool, test_data)
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(test_insert())
+    loop.close()
