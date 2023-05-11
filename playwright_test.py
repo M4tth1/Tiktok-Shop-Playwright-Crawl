@@ -52,7 +52,7 @@ async def handle_login():
         # await page.get_by_placeholder("密码").fill("JIAOkai123.")
         # await page.get_by_role("button", name="登录").click()
         await page.get_by_placeholder("请输入手机号码").click()
-        await page.get_by_placeholder("请输入手机号码").fill("18810362350")
+        await page.get_by_placeholder("请输入手机号码").fill("15238084961")
         await page.get_by_text("发送验证码").click()
         # todo 等待获取验证码
         for i in range(10):
@@ -83,7 +83,7 @@ async def handle_login():
                 # 移动结束鼠标抬起
                 await page.wait_for_timeout(500)
                 await page.mouse.up()
-                await page.wait_for_selector('div.account-center-code-captcha.active', timeout=3000)
+                await page.wait_for_selector('div.style_businessItem__2ty6K.style_todoItemPromotion__1Uv5C', timeout=3000)
                 break
             except Exception as e:
                 await page.wait_for_timeout(1000)
@@ -91,7 +91,7 @@ async def handle_login():
                 print(e)
         # todo 接收验证码
         await page.wait_for_timeout(30000)
-        storage = await context.storage_state(path=r'G:\workspace\tiktok_crawl\storage/test.json')
+        storage = await context.storage_state(path=r'G:\workspace\tiktok_crawl\storage\test.json')
         # await page.locator('text="下一步"').click()
         # await page.locator('text="我知道了"').click()
         await context.close()
@@ -102,8 +102,9 @@ async def handle_shop_info_crawl():
     # 爬取店铺名
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/1208879081.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
         page = await context.new_page()
+        page1 = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/grs/qualification/shopinfo')
         await page.wait_for_selector('div._3duiZdUahHyw8H7MW-2zvW')
         shop_info_list = await page.query_selector_all('div.ant-row._3aJWiCG93IlaU_3qf7a1Uc')
@@ -121,6 +122,12 @@ async def handle_shop_info_crawl():
             shopper_name = await shopper_item.text_content()
             print(shopper_item_title_text, shopper_name)
         # print('店铺名:', shop_name)
+        await page1.goto('https://fxg.jinritemai.com/ffa/grs/health-center')
+        await page1.wait_for_selector('div._2hOhdOZVPf0Qbj42CHxJKp')
+        shop_health_list = await page1.query_selector_all('div._2hOhdOZVPf0Qbj42CHxJKp')
+        for item in shop_health_list:
+            shop_health_item = await item.text_content()
+            print(shop_health_item)
         await context.close()
         await browser.close()
 
@@ -243,8 +250,8 @@ async def shop_orders_info_crawl():
 
 if __name__ == '__main__':
     # asyncio.run(handle_login())
-    # asyncio.run(handle_shop_info_crawl())
+    asyncio.run(handle_shop_info_crawl())
     # asyncio.run(handle_shop_basic_info_crawl())
     # asyncio.run(handle_score_info_crawl())
     # asyncio.run(shop_user_assets())
-    asyncio.run(shop_orders_info_crawl())
+    # asyncio.run(shop_orders_info_crawl())
