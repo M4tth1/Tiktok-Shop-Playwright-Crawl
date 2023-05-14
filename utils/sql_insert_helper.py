@@ -301,38 +301,49 @@ async def insert_shop_daily_bill(pool, data):
 # 插入待结算订单sql
 # sql = '''
 #     CREATE TABLE IF NOT EXISTS tkShopNoClearingInfos (
-#     totalIncome VARCHAR(255),
-#     counts VARCHAR(255),
-#     endBalance VARCHAR(255),
-#     totalExpenses VARCHAR(255),
-#     balanceChange VARCHAR(255),
+#     paymentAmt DECIMAL(10, 2),
+#     preClearingAmt DECIMAL(10, 2),
+#     orderNo VARCHAR(255),
+#     goodsId VARCHAR(255),
+#     ordersSubNo VARCHAR(255),
+#     orderStatus VARCHAR(255),
+#     refundStatus VARCHAR(255),
+#     finishDate VARCHAR(255),
 #     updateTime VARCHAR(255),
-#     beginBalance VARCHAR(255),
+#     preClearingDate VARCHAR(255),
+#     orderDate VARCHAR(255),
 #     shopId VARCHAR(255),
-#     PRIMARY KEY (shopId),
+#     PRIMARY KEY (orderNo),
 #     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
 #     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
 #     '''
 async def insert_shop_no_clearing(pool, data):
     sql = '''
         INSERT INTO tkShopNoClearingInfos (
-        totalIncome,
-        counts,
-        endBalance,
-        totalExpenses,
-        balanceChange,
+        paymentAmt,
+        preClearingAmt,
+        orderNo,
+        goodsId,
+        ordersSubNo,
+        orderStatus,
+        refundStatus,
+        finishDate,
         updateTime,
-        beginBalance,
+        preClearingDate,
+        orderDate,
         shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
-        totalIncome = VALUES(totalIncome),
-        counts = VALUES(counts),
-        endBalance = VALUES(endBalance),
-        totalExpenses = VALUES(totalExpenses),
-        balanceChange = VALUES(balanceChange),
+        paymentAmt = VALUES(paymentAmt),
+        preClearingAmt = VALUES(preClearingAmt),
+        goodsId = VALUES(goodsId),
+        ordersSubNo = VALUES(ordersSubNo),
+        orderStatus = VALUES(orderStatus),
+        refundStatus = VALUES(refundStatus),
+        finishDate = VALUES(finishDate),
         updateTime = VALUES(updateTime),
-        beginBalance = VALUES(beginBalance)
+        preClearingDate = VALUES(preClearingDate),
+        orderDate = VALUES(orderDate)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -340,41 +351,58 @@ async def insert_shop_no_clearing(pool, data):
             await conn.commit()
 
 
-# 插入结算订单sql
+# 插入结算订单sql，根据下面建表写插入
 # sql = '''
 #     CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
-#     totalIncome VARCHAR(255),
-#     counts VARCHAR(255),
-#     endBalance VARCHAR(255),
-#     totalExpenses VARCHAR(255),
-#     balanceChange VARCHAR(255),
+#     amount DECIMAL(10, 2),
+#     orderNo VARCHAR(255),
+#     quantity INTEGER,
+#     specification VARCHAR(255),
+#     orderStatus VARCHAR(255),
 #     updateTime VARCHAR(255),
-#     beginBalance VARCHAR(255),
+#     afterSalesStatus VARCHAR(255),
+#     tags VARCHAR(255),
+#     price DECIMAL(10, 2),
+#     name VARCHAR(255),
+#     paymentMethod VARCHAR(255),
+#     category VARCHAR(255),
+#     orderDate VARCHAR(255),
 #     shopId VARCHAR(255),
-#     PRIMARY KEY (shopId),
+#     PRIMARY KEY (orderNo),
 #     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
 #     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
 #     '''
 async def insert_shop_clearing(pool, data):
     sql = '''
         INSERT INTO tkShopClearingInfos (
-        totalIncome,
-        counts,
-        endBalance,
-        totalExpenses,
-        balanceChange,
+        amount,
+        orderNo,
+        quantity,
+        specification,
+        orderStatus,
         updateTime,
-        beginBalance,
+        afterSalesStatus,
+        tags,
+        price,
+        name,
+        paymentMethod,
+        category,
+        orderDate,
         shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
-        totalIncome = VALUES(totalIncome),
-        counts = VALUES(counts),
-        endBalance = VALUES(endBalance),
-        totalExpenses = VALUES(totalExpenses),
-        balanceChange = VALUES(balanceChange),
+        amount = VALUES(amount),
+        quantity = VALUES(quantity),
+        specification = VALUES(specification),
+        orderStatus = VALUES(orderStatus),
         updateTime = VALUES(updateTime),
-        beginBalance = VALUES(beginBalance)
+        afterSalesStatus = VALUES(afterSalesStatus),
+        tags = VALUES(tags),
+        price = VALUES(price),
+        name = VALUES(name),
+        paymentMethod = VALUES(paymentMethod),
+        category = VALUES(category),
+        orderDate = VALUES(orderDate)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -384,16 +412,14 @@ async def insert_shop_clearing(pool, data):
 # 写一个测试插入的函数
 async def test_insert():
     pool = await create_pool()
-    test_data = [
-        (1, 1, '2022-01-01', 'Shop A', '123456', '2023-01-01', 1, 0, 'Firm A', 'USC123', 1, 1, 1, 'John Smith', 0,
-         '123 Main St'),
-        (0, 1, '2022-02-01', 'Shop B', '789012', '2023-02-01', 0, 10, 'Firm B', 'USC456', 2, 2, 2, 'Jane Doe', 5,
-         '456 Elm St')
-    ]
-    await insert_shop_basic_info(pool, test_data)
+    test_data = [29.00, 27.55, '6918452303422559827', '3600144569297152275', '6918452303422559827', '已发货', '', '',
+         '2023-05-14 17:48:57', '买家/系统确认收货4天后可结算货款', '2023/05/14 15:27:04', '4018100']
+    await insert_shop_no_clearing(pool, test_data)
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(test_insert())
+    # loop.run_until_complete(test_insert())
     loop.close()
+    for i in range(2, 3):
+        print(i)

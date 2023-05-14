@@ -10,7 +10,6 @@
 import configparser
 import os
 
-from utils import log_helper
 
 logger = log_helper.get_logger("config_helper")
 

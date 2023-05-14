@@ -53,5 +53,13 @@ def query(sql, *args):
 
 if __name__ == '__main__':
     sql = "select * from tkShopBasicInfoDto"
+    # 数据库名有：kScoreInfo，tkCounterpartsRank，userAssets，tkShopMonthlyBillInfos，tkShopDailyBillInfos，tkShopNoClearingInfos，tkShopClearingInfos
+    # sql = "select * from kScoreInfo"
+    # sql = "select * from tkCounterpartsRank"
+    # sql = "select * from userAssets"
+    sql = "select * from tkShopMonthlyBillInfos"
+    # sql = "select * from tkShopDailyBillInfos"
+    # sql = "select * from tkShopNoClearingInfos"
+    # sql = "select * from tkShopClearingInfos"
     res = query(sql)
     print(res)

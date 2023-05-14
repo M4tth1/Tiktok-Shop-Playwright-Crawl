@@ -101,35 +101,6 @@ def show_tables():
 # updateTime	更新时间	string(date-time)
 # beginBalance	期初余额	number
 
-# 创建抖店店铺订单信息数据表,具体表的字段根据抖店数据字段表来定,具体字段名和类型如下：
-# 数据库名：tkShopNoClearingInfos	待结算订单
-# paymentAmt	支付金额	number
-# preClearingAmt	预结算金额	number
-# orderNo	订单编号	string
-# goodsId	商品名称	string
-# ordersSubNo	子订单编号	string
-# orderStatus	订单状态	string
-# refundStatus	退款状态	string
-# finishDate	完成时间	string(date-time)
-# updateTime	更新时间	string(date-time)
-# preClearingDate	预结算时间	string(date-time)
-# orderDate	下单时间	string(date-time)
-
-# 数据库名：tkOrderInfos	订单信息
-# amount	支付金额	number
-# orderNo	订单编号	string
-# quantity	数量	integer(int32)
-# specification	商品规格	string
-# orderStatus	订单状态	string
-# updateTime	数据更新时间	string(date-time)
-# afterSalesStatus	售后状态	string
-# tags	商品标签	string
-# price	单价	number
-# name	商品名称	string
-# paymentMethod	支付方式	string
-# category	商品品类	string
-# orderDate	下单时间	string(date-time)
-
 # 还有一个接收验证码用的表，具体字段名和类型如下：
 # phone	手机号	string
 # code	验证码	string
@@ -219,13 +190,13 @@ def create_user_assets():
     sql = '''
     CREATE TABLE IF NOT EXISTS userAssets (
     period VARCHAR(255),
-    amount VARCHAR(255),
-    avgAmt VARCHAR(255),
-    refundUsers VARCHAR(255),
-    userDealCounts VARCHAR(255),
-    visit VARCHAR(255),
-    userCounts VARCHAR(255),
-    refundAmt VARCHAR(255),
+    amount DECIMAL(10, 2),
+    avgAmt DECIMAL(10, 2),
+    refundUsers INTEGER,
+    userDealCounts INTEGER,
+    visit INTEGER,
+    userCounts INTEGER,
+    refundAmt DECIMAL(10, 2),
     shopId VARCHAR(255),
     PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
@@ -242,15 +213,14 @@ def create_tk_shop_monthly_bill_infos():
     # 外键为tkShopBasicInfoDto中的shopId
     sql = '''
     CREATE TABLE IF NOT EXISTS tkShopMonthlyBillInfos (
-    totalIncome VARCHAR(255),
+    totalIncome DECIMAL(10, 2),
     counts VARCHAR(255),
-    endBalance VARCHAR(255),
-    totalExpenses VARCHAR(255),
-    balanceChange VARCHAR(255),
+    endBalance DECIMAL(10, 2),
+    totalExpenses DECIMAL(10, 2),
+    balanceChange DECIMAL(10, 2),
     updateTime VARCHAR(255),
-    beginBalance VARCHAR(255),
+    beginBalance DECIMAL(10, 2),
     shopId VARCHAR(255),
-    PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -265,15 +235,14 @@ def create_tk_shop_daily_bill_infos():
     # 外键为tkShopBasicInfoDto中的shopId
     sql = '''
     CREATE TABLE IF NOT EXISTS tkShopDailyBillInfos (
-    totalIncome VARCHAR(255),
+    totalIncome DECIMAL(10, 2),
     counts VARCHAR(255),
-    endBalance VARCHAR(255),
-    totalExpenses VARCHAR(255),
-    balanceChange VARCHAR(255),
+    endBalance DECIMAL(10, 2),
+    totalExpenses DECIMAL(10, 2),
+    balanceChange DECIMAL(10, 2),
     updateTime VARCHAR(255),
-    beginBalance VARCHAR(255),
+    beginBalance DECIMAL(10, 2),
     shopId VARCHAR(255),
-    PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -282,21 +251,38 @@ def create_tk_shop_daily_bill_infos():
     conn.close()
 
 
+# 创建抖店店铺订单信息数据表,具体表的字段根据抖店数据字段表来定,具体字段名和类型如下：
+# 数据库名：tkShopNoClearingInfos	待结算订单
+# paymentAmt	支付金额	number
+# preClearingAmt	预结算金额	number
+# orderNo	订单编号	string
+# goodsId	商品名称	string
+# ordersSubNo	子订单编号	string
+# orderStatus	订单状态	string
+# refundStatus	退款状态	string
+# finishDate	完成时间	string(date-time)
+# updateTime	更新时间	string(date-time)
+# preClearingDate	预结算时间	string(date-time)
+# orderDate	下单时间	string(date-time)
 def create_tk_shop_no_clearing_infos():
     conn = Pool.connection()
     cursor = conn.cursor()
     # 外键为tkShopBasicInfoDto中的shopId
     sql = '''
     CREATE TABLE IF NOT EXISTS tkShopNoClearingInfos (
-    totalIncome VARCHAR(255),
-    counts VARCHAR(255),
-    endBalance VARCHAR(255),
-    totalExpenses VARCHAR(255),
-    balanceChange VARCHAR(255),
+    paymentAmt DECIMAL(10, 2),
+    preClearingAmt DECIMAL(10, 2),
+    orderNo VARCHAR(255),
+    goodsId VARCHAR(255),
+    ordersSubNo VARCHAR(255),
+    orderStatus VARCHAR(255),
+    refundStatus VARCHAR(255),
+    finishDate VARCHAR(255),
     updateTime VARCHAR(255),
-    beginBalance VARCHAR(255),
+    preClearingDate VARCHAR(255),
+    orderDate VARCHAR(255),
     shopId VARCHAR(255),
-    PRIMARY KEY (shopId),
+    PRIMARY KEY (orderNo),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -305,21 +291,41 @@ def create_tk_shop_no_clearing_infos():
     conn.close()
 
 
+# 数据库名：tkOrderInfos	订单信息
+# amount	支付金额	number
+# orderNo	订单编号	string
+# quantity	数量	integer(int32)
+# specification	商品规格	string
+# orderStatus	订单状态	string
+# updateTime	数据更新时间	string(date-time)
+# afterSalesStatus	售后状态	string
+# tags	商品标签	string
+# price	单价	number
+# name	商品名称	string
+# paymentMethod	支付方式	string
+# category	商品品类	string
+# orderDate	下单时间	string(date-time)
 def create_tk_shop_clearing_infos():
     conn = Pool.connection()
     cursor = conn.cursor()
     # 外键为tkShopBasicInfoDto中的shopId
     sql = '''
     CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
-    totalIncome VARCHAR(255),
-    counts VARCHAR(255),
-    endBalance VARCHAR(255),
-    totalExpenses VARCHAR(255),
-    balanceChange VARCHAR(255),
+    amount DECIMAL(10, 2),
+    orderNo VARCHAR(255),
+    quantity INTEGER,
+    specification VARCHAR(255),
+    orderStatus VARCHAR(255),
     updateTime VARCHAR(255),
-    beginBalance VARCHAR(255),
+    afterSalesStatus VARCHAR(255),
+    tags VARCHAR(255),
+    price DECIMAL(10, 2),
+    name VARCHAR(255),
+    paymentMethod VARCHAR(255),
+    category VARCHAR(255),
+    orderDate VARCHAR(255),
     shopId VARCHAR(255),
-    PRIMARY KEY (shopId),
+    PRIMARY KEY (orderNo),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -342,12 +348,30 @@ def drop_table():
     DROP TABLE IF EXISTS tkShopNoClearingInfos;
     DROP TABLE IF EXISTS tkShopClearingInfos;
     '''
+    sql = '''
+    DROP TABLE IF EXISTS tkShopClearingInfos;
+    '''
     cursor.execute(sql)
     cursor.close()
     conn.close()
 
 
+def describe_tables():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    sql = '''
+    describe tkShopClearingInfos;
+    '''
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    print(result)
+    cursor.close()
+    conn.close()
+
+
 if __name__ == '__main__':
+    show_tables()
+    drop_table()
     # create_table()
     # create_tk_shop_basic_info()
     # create_k_score_info()
@@ -356,7 +380,8 @@ if __name__ == '__main__':
     # create_tk_shop_monthly_bill_infos()
     # create_tk_shop_daily_bill_infos()
     # create_tk_shop_no_clearing_infos()
-    # create_tk_shop_clearing_infos()
+    create_tk_shop_clearing_infos()
     show_tables()
+    describe_tables()
 
 

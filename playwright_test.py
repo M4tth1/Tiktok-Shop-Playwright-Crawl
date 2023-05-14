@@ -6,7 +6,9 @@
 # @File    : playwright_test.py
 # @Project : tiktok_crawl
 # @Software: PyCharm
+import datetime
 import os.path
+import re
 import time
 import traceback
 
@@ -14,7 +16,9 @@ import aiohttp
 import asyncio
 import hashlib
 from playwright.async_api import async_playwright
+from decimal import Decimal
 from opencv_test import get_notch_location, get_track, get_slide_track,get_track_old
+from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, insert_shop_clearing, create_pool, close_pool
 
 
 async def download_image(url, _type):
@@ -108,35 +112,49 @@ async def handle_shop_info_crawl():
         await page.goto('https://fxg.jinritemai.com/ffa/grs/qualification/shopinfo')
         await page.wait_for_selector('div._3duiZdUahHyw8H7MW-2zvW')
         shop_info_list = await page.query_selector_all('div.ant-row._3aJWiCG93IlaU_3qf7a1Uc')
+        storage_shop_info_list = list()
         for item in shop_info_list:
             shop_item = await item.query_selector('div.ant-col._2oUK91ircK4AKJrKQ8fyHD')
             shop_item_title = await item.query_selector('div.ant-col._7Qygb3VmS0-7XcXX446U4')
             shop_item_title_text = await shop_item_title.text_content()
             shop_name = await shop_item.text_content()
-            print(shop_item_title_text, shop_name)
+            # print(shop_item_title_text, shop_name)
+            storage_shop_info_list.append(shop_name)
         shopper_info_list = await page.query_selector_all('div.ant-row.index__row--D9_4Q')
+        storage_shopper_info_list = list()
         for item in shopper_info_list:
             shopper_item = await item.query_selector('div.ant-col.index__value--24QvX')
             shopper_item_title = await item.query_selector('div.ant-col.index__label--3cO2r')
             shopper_item_title_text = await shopper_item_title.text_content()
             shopper_name = await shopper_item.text_content()
-            print(shopper_item_title_text, shopper_name)
+            # print(shopper_item_title_text, shopper_name)
+            storage_shopper_info_list.append(shopper_name)
         # print('店铺名:', shop_name)
         await page1.goto('https://fxg.jinritemai.com/ffa/grs/health-center')
         await page1.wait_for_selector('div._2hOhdOZVPf0Qbj42CHxJKp')
         shop_health_list = await page1.query_selector_all('div._2hOhdOZVPf0Qbj42CHxJKp')
+        storage_shop_health_list = list()
         for item in shop_health_list:
             shop_health_item = await item.text_content()
-            print(shop_health_item)
+            # print(shop_health_item)
+            storage_shop_health_list.append(shop_health_item.split('当前违规积分：')[1])
         await context.close()
         await browser.close()
+        print(storage_shop_info_list)
+        print(storage_shopper_info_list)
+        print(storage_shop_health_list)
+        # todo excel中还有界面中未找到的数据，爬取的数据，需要补充
+        params = [None, None, None, storage_shop_info_list[2], None, None, None, storage_shop_health_list[0], None, None, storage_shop_info_list[0], storage_shop_info_list[1], None, storage_shopper_info_list[0], storage_shop_health_list[1], None]
+        pool = await create_pool()
+        await insert_shop_basic_info(pool, params)
+        await close_pool(pool)
 
 
 async def handle_shop_basic_info_crawl():
     # 爬取店铺其他基本信息，未完成
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/1208879081.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
         await page.wait_for_selector('div.style_businessItem__2ty6K.style_todoItemPromotion__1Uv5C')
@@ -159,47 +177,68 @@ async def handle_shop_basic_info_crawl():
         await browser.close()
         
         
-async def handle_score_info_crawl():
+async def handle_score_info_crawl(shop_id):
     # 爬取服务体验分
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/1208879081.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/eco/experience-score')
         await page.wait_for_selector('div.v6_wFQaGBIqvvE-')
         service_score_total = await (await page.query_selector('div.v6_wFQaGBIqvvE-')).text_content()
-        print('服务分总分:', service_score_total)
+        # print('服务分总分:', service_score_total)
         score_info_list = await page.query_selector_all('div.v6_zVSomkApGwc-')
+        storage_score_info_list = list()
+        storage_counter_score = list()
         for item in score_info_list:
             score_item = await item.query_selector('div.v6_EgCX-3RMYjE-')
             score_item_title = await item.query_selector('div.v6_F-mNPOIVxzc-')
             score_item_title_text = await score_item_title.text_content()
             score_name = await score_item.text_content()
-            print(score_item_title_text, score_name)
+            # print(score_item_title_text, score_name)
+            storage_score_info_list.append(score_name)
             compare_list = await item.query_selector_all('div.v6_7fsnInXemPI-')
             for i in compare_list:
                 compare_text = await i.text_content()
                 if compare_text.startswith('超越'):
-                    print(compare_text)
+                    # print(compare_text)
+                    storage_counter_score.append(compare_text)
         score_time_list = await page.query_selector_all('div.v6_LHvV1R66e-c-')
+        score_time = None
         for item in score_time_list:
-            score_time = await item.text_content()
-            if score_time.startswith('更新时间'):
-                print(score_time)
+            score_time_temp = await item.text_content()
+            if score_time_temp.startswith('更新时间'):
+                score_time = score_time_temp.split('更新时间: ')[1]
         score_detail_list = await page.query_selector_all('div.v6_Lln7s-CXL3o-')
+        dispute_rate = '%0.00'
         for item in score_detail_list:
             score_detail_title = await (await item.query_selector('div.v6_G3qU9-gKqH8-')).text_content()
             score_detail = await (await item.query_selector('div.v6_xNdRJF3ONww-')).text_content()
-            print(score_detail_title, score_detail)
+            # print(score_detail_title, score_detail)
+            if score_detail_title.startswith('纠纷伤责率'):
+                dispute_rate = score_detail
         # print('店铺名:', score_name)
         await context.close()
         await browser.close()
+        print(storage_counter_score)
+        score_params = [service_score_total.split('较昨日')[0], storage_score_info_list[2][0:4], storage_score_info_list[0][0:4], storage_score_info_list[1][0:4], score_time, shop_id]
+        print(('超越' + service_score_total.split('超越')[1]))
+        print(storage_counter_score[2])
+        print(storage_counter_score[0])
+        print(storage_counter_score[1])
+        print(score_time)
+        print(dispute_rate)
+        print(shop_id)
+        counter_params = [('超越' + service_score_total.split('超越')[1]), storage_counter_score[2], None, storage_counter_score[0], storage_counter_score[1], score_time, dispute_rate, shop_id]
+        pool = await create_pool()
+        await insert_shop_score_info(pool, score_params)
+        await insert_shop_counterparts_rank(pool, counter_params)
+        await close_pool(pool)
 
-
-async def shop_user_assets():
+async def shop_user_assets(shop_id):
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/1208879081.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
         await page.get_by_role("button", name="知道了").click()
@@ -209,49 +248,345 @@ async def shop_user_assets():
         await page1.goto('https://compass.jinritemai.com/shop/business-part')
         await page1.wait_for_selector('div.cardWrapper--FiTGw.enableCheck--u536d.active--fYy_5.active_card.card_item')
         shop_user_assets_seleted_list = await page1.query_selector_all('div.cardWrapper--FiTGw.enableCheck--u536d.active--fYy_5.active_card.card_item')
+        storage_shop_user_assets_list = list()
         for item in shop_user_assets_seleted_list:
             shop_user_assets_selected_name = await item.text_content()
-            print(shop_user_assets_selected_name)
+            # print(shop_user_assets_selected_name)
+            # print(1)
+            # storage_shop_user_assets_list.append(shop_user_assets_selected_name)
         shop_user_assets_unseleted_list = await page1.query_selector_all('div.cardWrapper--FiTGw.enableCheck--u536d.card_item')
         for item in shop_user_assets_unseleted_list:
             shop_user_assets_unselected_name = await item.text_content()
-            print(shop_user_assets_unselected_name)
+            # print(shop_user_assets_unselected_name)
+            # print(2)
+            storage_shop_user_assets_list.append(shop_user_assets_unselected_name)
         await page1.get_by_text("全店退款分析").click()
         await page1.wait_for_selector('div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
         shop_user_unfund_seleted_list = await page1.query_selector_all('div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
         for item in shop_user_unfund_seleted_list:
             shop_user_unfund_selected_name = await item.text_content()
-            print(shop_user_unfund_selected_name)
+            # print(shop_user_unfund_selected_name)
+            # print(3)
+            # storage_shop_user_assets_list.append(shop_user_unfund_selected_name)
         shop_user_unfund_unseleted_list = await page1.query_selector_all('div.cardWrapper--OrRDC.enableCheck--OmTIW.card_item.secondary--tJohQ')
         for item in shop_user_unfund_unseleted_list:
             shop_user_unfund_unselected_name = await item.text_content()
-            print(shop_user_unfund_unselected_name)
+            # print(shop_user_unfund_unselected_name)
+            # print(4)
+            storage_shop_user_assets_list.append(shop_user_unfund_unselected_name)
         await context.close()
         await browser.close()
+        print(storage_shop_user_assets_list)
+        for item in storage_shop_user_assets_list:
+            if item.startswith('成交金额'):
+                amount = item.split('成交金额¥')[1].split('较上周期')[0].replace(',', '')
+                print(amount)
+                amount = Decimal(amount).quantize(Decimal('0.00'))
+            elif item.startswith('退款金额'):
+                refund_amount = item.split('退款金额¥')[1].split('较上周期')[0].replace(',', '')
+                print(refund_amount)
+                refund_amount = Decimal(refund_amount).quantize(Decimal('0.00'))
+            elif item.startswith('成交客单价'):
+                average_amount = item.split('成交客单价¥')[1].split('较上周期')[0].replace(',', '')
+                print(average_amount)
+                average_amount = Decimal(average_amount).quantize(Decimal('0.00'))
+            elif item.startswith('退款人数'):
+                refund_user_num = item.split('退款人数')[1].split('较上周期')[0]
+                if '万' in refund_user_num:
+                    num = float(refund_user_num[:-1]) * 10000  # 将字符串转为浮点数并乘以10000
+                    refund_user_num = int(num)  # 再将浮点数转为整数并转为字符串
+            elif item.startswith('成交人数'):
+                user_num = item.split('成交人数')[1].split('较上周期')[0]
+                if '万' in user_num:
+                    num = float(user_num[:-1]) * 10000  # 将字符串转为浮点数并乘以10000
+                    user_num = int(num)  # 再将浮点数转为整数并转为字符串
+            elif item.startswith('商品访客数'):
+                visitor_num = item.split('商品访客数')[1].split('较上周期')[0]
+                if '万' in visitor_num:
+                    num = float(visitor_num[:-1]) * 10000  # 将字符串转为浮点数并乘以10000
+                    visitor_num = int(num)  # 再将浮点数转为整数并转为字符串
+            elif item.startswith('商品曝光次数'):
+                exposure_num = item.split('商品曝光次数')[1].split('较上周期')[0]
+                if '万' in exposure_num:
+                    num = float(exposure_num[:-1]) * 10000  # 将字符串转为浮点数并乘以10000
+                    exposure_num = int(num)  # 再将浮点数转为整数并转为字符串
+        period = '30'
+        params = [period, amount, average_amount, refund_user_num, user_num, visitor_num, exposure_num, refund_amount, shop_id]
+        print(params)
+        pool = await create_pool()
+        await insert_user_assets(pool, params)
+        await close_pool(pool)
 
 
-async def shop_orders_info_crawl():
+async def shop_orders_info_crawl(shop_id):
+    # 订单详情
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
-        shop_order_info_list = await page.query_selector_all('td.auxo-table-cell')
-        print(len(shop_order_info_list))
-        for shop_order_info in shop_order_info_list:
-            # order_payment_info_text = await (await shop_order_info.query_selector('td.auxo-table-cell')).text_content()
-            order_payment_info_text = await shop_order_info.text_content()
-            print(order_payment_info_text)
-        await page.wait_for_timeout(2000000)
+        params_list = list()
+        # 标签栏
+        head_list = list()
+        pre_head_info_list = await page.query_selector_all('span.auxo-pair-head-wrapper')
+        for pre_head_info in pre_head_info_list:
+            order_no_list = await pre_head_info.query_selector_all('span.index_text__3y09K')
+            temp_list = list()
+            for order_no in order_no_list:
+                order_no = await order_no.text_content()
+                order_no = order_no.replace('\xa0', ' ')
+                order_no = order_no.replace('/', '-')
+                order_no = order_no.split(' ')[1]
+                temp_list.append(order_no)
+            head_list.append([temp_list[0], temp_list[1]])
+        tr_temp_list = list()
+        tr_test_list = await page.query_selector_all('tr')
+        order_index_list = list()
+        for tr_test in tr_test_list:
+            tr_test_text = await tr_test.text_content()
+            tr_temp_list.append(tr_test_text)
+            # 订单详情栏
+        tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.auxo-pair-group-row-last.row-vertical-top.index_table-row__ULgxX', 'tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
+        tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
+        payment_method_list = list()
+        amount_list = list()
+        order_status_list = list()
+        after_sales_status_list = list()
+        tags_list = list()
+        name_list = list()
+        specification_list = list()
+        for sub_tab in tab_name:
+            shop_order_info_list = await page.query_selector_all(sub_tab)
+            # print(len(shop_order_info_list))
+            for shop_order_info in shop_order_info_list:
+                box_text_temp_list = list()
+                order_payment_info_list = await shop_order_info.query_selector_all('td.auxo-table-cell')
+                print('[]]]]]]]]]]]]]]]')
+                for box_item in order_payment_info_list:
+                    try:
+                        goods_info_list = await box_item.query_selector_all('div.index_ellipsis__29MP5.undefined')
+                        goods_text_list = list()
+                        for goods_info in goods_info_list:
+                            goods_info_text = await goods_info.text_content()
+                            goods_text_list.append(goods_info_text)
+                        if len(goods_text_list) == 3:
+                            name = goods_text_list[0]
+                            specification = goods_text_list[1]
+                            name_list.append(name)
+                            specification_list.append(specification)
+                    except Exception as e:
+                        print(e)
+                    box_text = await box_item.text_content()
+                    box_text_temp_list.append(box_text)
+                    if '¥' in box_text and 'x' not in box_text:
+                        # 支付方式
+                        # 总金额
+                        payment_method = box_text.split('¥')[0]
+                        amount = box_text.split('¥')[1]
+                        payment_method_list.append(payment_method)
+                        amount_list.append(amount)
+                print(box_text_temp_list)
+                if len(box_text_temp_list) > 7:
+                    order_status_list.append(box_text_temp_list[-2])
+                    after_sales_status_list.append(box_text_temp_list[3])
+                    tags_list.append('')
+        for index, value in enumerate(tr_temp_list):
+            if '订单编号' in value:
+                order_index_list.append(index)
+        quantity_list = list()
+        for index, value in enumerate(order_index_list):
+            quantity = 0
+            if index + 1 < len(order_index_list):
+                for i in range(order_index_list[index]+1, order_index_list[index+1]):
+                    box_text = tr_temp_list[i]
+                    try:
+                        sub_quantity = int(box_text.split('x')[1].split('商家编码')[0])
+                        quantity += sub_quantity
+                    except Exception as e:
+                        quantity += 0
+                quantity_list.append(quantity)
+            else:
+                for i in range(order_index_list[index]+1, len(tr_temp_list)):
+                    box_text = tr_temp_list[i]
+                    try:
+                        sub_quantity = int(box_text.split('x')[1].split('商家编码')[0])
+                        quantity += sub_quantity
+                    except Exception as e:
+                        quantity += 0
+                quantity_list.append(quantity)
+        print(len(amount_list), amount_list)
+        print(len(head_list), head_list)
+        print(len(quantity_list), quantity_list)
+        print(len(specification_list), specification_list)
+        print(len(order_status_list), order_status_list)
+        # todo 数据更新时间
+        update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(len(after_sales_status_list), after_sales_status_list)
+        print(len(tags_list), tags_list)
+
+        print(len(name_list), name_list)
+        print(len(order_index_list), order_index_list)
+        print(len(payment_method_list), payment_method_list)
         await context.close()
         await browser.close()
+
+
+async def shop_not_clear_orders_info_crawl(shop_id):
+    # 待结算订单详情
+    # todo 待结算时间选取
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        page = await context.new_page()
+        await page.goto('https://fxg.jinritemai.com/ffa/morder/finance/order-list')
+        await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
+        not_clear_order_info_list = await page.query_selector_all('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
+        print(len(not_clear_order_info_list))
+        params_list = list()
+        for not_clear_order_info in not_clear_order_info_list:
+            tab_cell_list = await not_clear_order_info.query_selector_all('td.auxo-table-cell')
+            # order_payment_info_text = await (await not_clear_order_info.query_selector('td.auxo-table-cell')).text_content()
+            # order_payment_info_text = await not_clear_order_info.text_content()
+            # print(order_payment_info_text)
+            # order_no = order_payment_info_text[0:19]
+            # order_sub_no = order_payment_info_text[19:39]
+            # goods_id = order_payment_info_text[39:59]
+            temp_params_list = list()
+            for tab_cell in tab_cell_list:
+                tab_cell_text = await tab_cell.text_content()
+                temp_params_list.append(tab_cell_text)
+            update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            for item in temp_params_list:
+                if item == '-':
+                    temp_params_list[temp_params_list.index(item)] = ''
+            order_date = ''
+            finish_date = ''
+            if temp_params_list[5] != '':
+                date_str = temp_params_list[5][:10]  # 提取日期部分 '2023/05/12'
+                time_str = temp_params_list[5][10:]  # 提取时间部分 '21:58:20'
+                order_date = date_str + ' ' + time_str
+            if temp_params_list[6] != '':
+                date_str = temp_params_list[6][:10]  # 提取日期部分 '2023/05/12'
+                time_str = temp_params_list[6][10:]  # 提取时间部分 '21:58:20'
+                finish_date = date_str + ' ' + time_str
+            if temp_params_list[7] != '':
+                payment_amt = Decimal(temp_params_list[7].split('¥')[1]).quantize(Decimal('0.00'))
+            if temp_params_list[9] != '':
+                pre_clear_amt = Decimal(temp_params_list[9].split('¥')[1]).quantize(Decimal('0.00'))
+            params_list.append([payment_amt, pre_clear_amt, temp_params_list[0], temp_params_list[2], temp_params_list[1], temp_params_list[3], temp_params_list[4], finish_date, update_time, temp_params_list[8], order_date, shop_id])
+        await context.close()
+        await browser.close()
+        pool = await create_pool()
+        for param in params_list:
+            print(param)
+            await insert_shop_no_clearing(pool, param)
+        await close_pool(pool)
+
+
+async def shop_daily_bill_crawl(shop_id):
+    # 待结算订单详情
+    # todo 是否需要翻页
+    date_pattern = r'\d{4}-\d{2}-\d{2}'  # 匹配日期
+    money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        page = await context.new_page()
+        await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
+        await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
+        daily_bill_info_list = await page.query_selector_all('tr.auxo-table-row.auxo-table-row-level-0')
+        print(len(daily_bill_info_list))
+        params = list()
+        for daily_bill_info in daily_bill_info_list:
+            # order_payment_info_text = await (await daily_bill_info.query_selector('td.auxo-table-cell')).text_content()
+            order_payment_info_text = await daily_bill_info.text_content()
+            order_payment_info_text = order_payment_info_text.replace('生成报表明细', '')
+            order_payment_info_text = order_payment_info_text.replace(',', '')
+            date = re.findall(date_pattern, order_payment_info_text)[0]
+            money_list = order_payment_info_text.split(date)[1].split('¥')
+            for index, value in enumerate(money_list):
+                if index == 0:
+                    continue
+                money_list[index] = Decimal(value).quantize(Decimal('0.00'))
+            params.append([money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4], shop_id])
+        await page.wait_for_timeout(2000)
+        await context.close()
+        await browser.close()
+        pool = await create_pool()
+        for param in params:
+            print(param)
+            await insert_shop_daily_bill(pool, param)
+        await close_pool(pool)
+
+
+async def shop_monthly_bill_crawl(shop_id):
+    # 待结算订单详情
+    daily_pattern = r'\d{4}-\d{2}-\d{2}'
+    date_pattern = r'\d{4}-\d{2}'  # 匹配日期
+    money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        page = await context.new_page()
+        await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
+        await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
+        await page.get_by_role("tab", name="月账单").click()
+        # await page.wait_for_selector('div.AKUX6LtcTT0YGWqqnWk3')
+        await page.wait_for_timeout(7000)
+        monthly_bill_info_list = await page.query_selector_all('tr.auxo-table-row.auxo-table-row-level-0')
+        print(len(monthly_bill_info_list))
+        params = list()
+        for monthly_bill_info in monthly_bill_info_list:
+            order_payment_info_text = await monthly_bill_info.text_content()
+            if re.match(daily_pattern, order_payment_info_text):
+                continue
+            order_payment_info_text = order_payment_info_text.replace('生成报表明细', '')
+            order_payment_info_text = order_payment_info_text.replace(',', '')
+            order_payment_info_text = order_payment_info_text.replace(' ', '')
+            date = re.findall(date_pattern, order_payment_info_text)[0]
+            money_list = order_payment_info_text.split(date)[1].split('¥')
+            print(date, money_list)
+            for index, value in enumerate(money_list):
+                if index == 0:
+                    continue
+                print(index, value)
+                if value.endswith('-'):
+                    value = value.replace('-', '')
+                    money_list[index+1] = '-' + money_list[index+1]
+                money_list[index] = Decimal(value).quantize(Decimal('0.00'))
+            params.append([money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],shop_id])
+
+            # order_payment_info_text = await (await monthly_bill_info.query_selector('td.auxo-table-cell')).text_content()
+        await context.close()
+        await browser.close()
+        pool = await create_pool()
+        for param in params:
+            print(param)
+            await insert_shop_month_bill(pool, param)
+        await close_pool(pool)
 
 
 if __name__ == '__main__':
     # asyncio.run(handle_login())
-    asyncio.run(handle_shop_info_crawl())
-    # asyncio.run(handle_shop_basic_info_crawl())
+    # asyncio.run(handle_shop_info_crawl())
+    # asyncio.run(handle_shop_basic_info_crawl()) 不需要
     # asyncio.run(handle_score_info_crawl())
     # asyncio.run(shop_user_assets())
     # asyncio.run(shop_orders_info_crawl())
+    # asyncio.run(shop_not_clear_orders_info_crawl())
+    # asyncio.run(shop_daily_bill_crawl())
+    # asyncio.run(shop_monthly_bill_crawl())
+
+
+    loop = asyncio.get_event_loop()
+    # loop.run_until_complete(handle_login())
+    # loop.run_until_complete(handle_shop_info_crawl())
+    # loop.run_until_complete(handle_shop_basic_info_crawl()) 不需要
+    # loop.run_until_complete(handle_score_info_crawl('4018100'))
+    # loop.run_until_complete(shop_user_assets('4018100'))
+    loop.run_until_complete(shop_orders_info_crawl('4018100'))
+    # loop.run_until_complete(shop_not_clear_orders_info_crawl('4018100'))
+    # loop.run_until_complete(shop_daily_bill_crawl('4018100'))
+    # loop.run_until_complete(shop_monthly_bill_crawl('4018100'))
+    loop.close()
