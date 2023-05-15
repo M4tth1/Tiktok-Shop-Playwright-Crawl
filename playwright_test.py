@@ -18,7 +18,7 @@ import hashlib
 from playwright.async_api import async_playwright
 from decimal import Decimal
 from opencv_test import get_notch_location, get_track, get_slide_track,get_track_old
-from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, insert_shop_clearing, create_pool, close_pool
+from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, insert_shop_clearing, create_pool, close_pool, insert_order_detail
 
 
 async def download_image(url, _type):
@@ -325,6 +325,8 @@ async def shop_orders_info_crawl(shop_id):
         context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
+        await page.get_by_role("button", name="right").click()
+        await page.wait_for_timeout(5000)
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
         params_list = list()
         # 标签栏
@@ -356,24 +358,36 @@ async def shop_orders_info_crawl(shop_id):
         tags_list = list()
         name_list = list()
         specification_list = list()
+        quantity_list = list()
+        price_list = list()
         for sub_tab in tab_name:
             shop_order_info_list = await page.query_selector_all(sub_tab)
             # print(len(shop_order_info_list))
             for shop_order_info in shop_order_info_list:
                 box_text_temp_list = list()
                 order_payment_info_list = await shop_order_info.query_selector_all('td.auxo-table-cell')
-                print('[]]]]]]]]]]]]]]]')
+                sub_box_num = 0
                 for box_item in order_payment_info_list:
+                    sub_box_num += 1
+                    if sub_box_num == 2:
+                        # todo 点商品
+                        await box_item.click()
                     try:
                         goods_info_list = await box_item.query_selector_all('div.index_ellipsis__29MP5.undefined')
+                        tags = await box_item.query_selector('div.style_tags__1hgJ9')
+                        if tags:
+                            tags_text = await tags.text_content()
+                            tags_list.append(tags_text)
                         goods_text_list = list()
                         for goods_info in goods_info_list:
                             goods_info_text = await goods_info.text_content()
                             goods_text_list.append(goods_info_text)
-                        if len(goods_text_list) == 3:
+                        if len(goods_text_list) >= 3:
                             name = goods_text_list[0]
-                            specification = goods_text_list[1]
+                            specification = goods_text_list[1].split('x')[0]
+                            quantity = goods_text_list[1].split('x')[1]
                             name_list.append(name)
+                            quantity_list.append(int(quantity))
                             specification_list.append(specification)
                     except Exception as e:
                         print(e)
@@ -383,51 +397,56 @@ async def shop_orders_info_crawl(shop_id):
                         # 支付方式
                         # 总金额
                         payment_method = box_text.split('¥')[0]
-                        amount = box_text.split('¥')[1]
+                        amount = Decimal(box_text.split('¥')[1]).quantize(Decimal('0.00'))
                         payment_method_list.append(payment_method)
                         amount_list.append(amount)
-                print(box_text_temp_list)
+                if len(box_text_temp_list) >= 3:
+                    price = Decimal(box_text_temp_list[2].split('¥')[1].split('x')[0]).quantize(Decimal('0.00'))
+                    price_list.append(price)
+                    after_sales_status = box_text_temp_list[3].replace('-', '')
+                    after_sales_status_list.append(after_sales_status)
                 if len(box_text_temp_list) > 7:
                     order_status_list.append(box_text_temp_list[-2])
-                    after_sales_status_list.append(box_text_temp_list[3])
-                    tags_list.append('')
         for index, value in enumerate(tr_temp_list):
             if '订单编号' in value:
                 order_index_list.append(index)
-        quantity_list = list()
+        box_quantity_all_list = list()
         for index, value in enumerate(order_index_list):
-            quantity = 0
+            box_quantity_all = 0
             if index + 1 < len(order_index_list):
                 for i in range(order_index_list[index]+1, order_index_list[index+1]):
                     box_text = tr_temp_list[i]
                     try:
-                        sub_quantity = int(box_text.split('x')[1].split('商家编码')[0])
-                        quantity += sub_quantity
+                        sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
+                        box_quantity_all += sub_box_quantity_all
                     except Exception as e:
-                        quantity += 0
-                quantity_list.append(quantity)
+                        box_quantity_all += 0
+                box_quantity_all_list.append(box_quantity_all)
             else:
                 for i in range(order_index_list[index]+1, len(tr_temp_list)):
                     box_text = tr_temp_list[i]
                     try:
-                        sub_quantity = int(box_text.split('x')[1].split('商家编码')[0])
-                        quantity += sub_quantity
+                        sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
+                        box_quantity_all += sub_box_quantity_all
                     except Exception as e:
-                        quantity += 0
-                quantity_list.append(quantity)
-        print(len(amount_list), amount_list)
-        print(len(head_list), head_list)
-        print(len(quantity_list), quantity_list)
-        print(len(specification_list), specification_list)
-        print(len(order_status_list), order_status_list)
-        # todo 数据更新时间
+                        box_quantity_all += 0
+                box_quantity_all_list.append(box_quantity_all)
+        # # todo 数据更新时间
         update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print(len(after_sales_status_list), after_sales_status_list)
-        print(len(tags_list), tags_list)
-
-        print(len(name_list), name_list)
-        print(len(order_index_list), order_index_list)
-        print(len(payment_method_list), payment_method_list)
+        goods_index = 0
+        pool = await create_pool()
+        for index, num in enumerate(box_quantity_all_list):
+            for i in range(goods_index, goods_index + num):
+                print(after_sales_status_list[i])
+                goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i], price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
+                await insert_order_detail(pool, goods_params)
+            goods_index += num
+            order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time, payment_method_list[index], head_list[index][1], shop_id]
+            await insert_shop_clearing(pool, order_params)
+        # print(len(goods_params_list), goods_params_list)
+        # print(len(order_params_list), order_params_list)
+        # todo 数据入库
+        await close_pool(pool)
         await context.close()
         await browser.close()
 
@@ -556,7 +575,6 @@ async def shop_monthly_bill_crawl(shop_id):
                     money_list[index+1] = '-' + money_list[index+1]
                 money_list[index] = Decimal(value).quantize(Decimal('0.00'))
             params.append([money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],shop_id])
-
             # order_payment_info_text = await (await monthly_bill_info.query_selector('td.auxo-table-cell')).text_content()
         await context.close()
         await browser.close()

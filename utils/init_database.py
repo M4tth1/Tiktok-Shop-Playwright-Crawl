@@ -294,16 +294,10 @@ def create_tk_shop_no_clearing_infos():
 # 数据库名：tkOrderInfos	订单信息
 # amount	支付金额	number
 # orderNo	订单编号	string
-# quantity	数量	integer(int32)
-# specification	商品规格	string
 # orderStatus	订单状态	string
 # updateTime	数据更新时间	string(date-time)
 # afterSalesStatus	售后状态	string
-# tags	商品标签	string
-# price	单价	number
-# name	商品名称	string
 # paymentMethod	支付方式	string
-# category	商品品类	string
 # orderDate	下单时间	string(date-time)
 def create_tk_shop_clearing_infos():
     conn = Pool.connection()
@@ -313,19 +307,45 @@ def create_tk_shop_clearing_infos():
     CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
     amount DECIMAL(10, 2),
     orderNo VARCHAR(255),
-    quantity INTEGER,
-    specification VARCHAR(255),
     orderStatus VARCHAR(255),
     updateTime VARCHAR(255),
-    afterSalesStatus VARCHAR(255),
-    tags VARCHAR(255),
-    price DECIMAL(10, 2),
-    name VARCHAR(255),
     paymentMethod VARCHAR(255),
-    category VARCHAR(255),
     orderDate VARCHAR(255),
     shopId VARCHAR(255),
     PRIMARY KEY (orderNo),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+# 数据库名：tkOrderDetailInfos	订单商品信息
+# orderNo	订单编号	string
+# quantity	数量	integer(int32)
+# specification	商品规格	string
+# updateTime	数据更新时间	string(date-time)
+# tags	商品标签	string
+# price	单价	number
+# name	商品名称	string
+# category	商品品类	string
+def create_tk_order_detail_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 外键为tkShopBasicInfoDto中的shopId
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkOrderDetailInfos (
+    orderNo VARCHAR(255),
+    quantity INTEGER,
+    specification VARCHAR(255),
+    updateTime VARCHAR(255),
+    tags VARCHAR(255),
+    price DECIMAL(10, 2),
+    afterSalesStatus VARCHAR(255),
+    name VARCHAR(255),
+    category VARCHAR(255),
+    shopId VARCHAR(255),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -349,7 +369,7 @@ def drop_table():
     DROP TABLE IF EXISTS tkShopClearingInfos;
     '''
     sql = '''
-    DROP TABLE IF EXISTS tkShopClearingInfos;
+    DROP TABLE IF EXISTS tkOrderDetailInfos;
     '''
     cursor.execute(sql)
     cursor.close()
@@ -360,7 +380,7 @@ def describe_tables():
     conn = Pool.connection()
     cursor = conn.cursor()
     sql = '''
-    describe tkShopClearingInfos;
+    describe tkOrderDetailInfos;
     '''
     cursor.execute(sql)
     result = cursor.fetchall()
@@ -368,6 +388,17 @@ def describe_tables():
     cursor.close()
     conn.close()
 
+def out_put_tables():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    sql = '''
+    select * from tkOrderDetailInfos;
+    '''
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    print(result)
+    cursor.close()
+    conn.close()
 
 if __name__ == '__main__':
     show_tables()
@@ -381,6 +412,7 @@ if __name__ == '__main__':
     # create_tk_shop_daily_bill_infos()
     # create_tk_shop_no_clearing_infos()
     create_tk_shop_clearing_infos()
+    create_tk_order_detail_infos()
     show_tables()
     describe_tables()
 

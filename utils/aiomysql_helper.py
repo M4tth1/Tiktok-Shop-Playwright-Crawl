@@ -9,26 +9,21 @@
 import aiomysql
 import asyncio
 import pymysql
-from utils import config_helper
-from utils import log_helper
 
-logger = log_helper.get_logger("aiomysql_helper")
-
-
-async def get_conn():
-    """
-    :return: 连接，游标
-    """
-    # 创建连接
-    conn = await aiomysql.connect(host=config_helper.get_config("mysql", "host"),
-                                  port=config_helper.get_config("mysql", "port"),
-                                  user=config_helper.get_config("mysql", "user"),
-                                  password=config_helper.get_config("mysql", "password"),
-                                  db=config_helper.get_config("mysql", "db"),
-                                  charset=config_helper.get_config("mysql", "charset"))
-    # 创建游标
-    cursor = await conn.cursor()
-    return conn, cursor
+# async def get_conn():
+#     """
+#     :return: 连接，游标
+#     """
+#     # 创建连接
+#     conn = await aiomysql.connect(host=config_helper.get_config("mysql", "host"),
+#                                   port=config_helper.get_config("mysql", "port"),
+#                                   user=config_helper.get_config("mysql", "user"),
+#                                   password=config_helper.get_config("mysql", "password"),
+#                                   db=config_helper.get_config("mysql", "db"),
+#                                   charset=config_helper.get_config("mysql", "charset"))
+#     # 创建游标
+#     cursor = await conn.cursor()
+#     return conn, cursor
 
 
 async def close_conn(conn, cursor):
@@ -239,6 +234,8 @@ async def select_list(sql, args):
     res = await select(sql, args)
     return res
 
-
+if __name__ == '__main__':
+    for i in range(0, 2):
+        print(i)
 
 

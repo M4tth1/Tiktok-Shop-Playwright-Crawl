@@ -356,16 +356,10 @@ async def insert_shop_no_clearing(pool, data):
 #     CREATE TABLE IF NOT EXISTS tkShopClearingInfos (
 #     amount DECIMAL(10, 2),
 #     orderNo VARCHAR(255),
-#     quantity INTEGER,
-#     specification VARCHAR(255),
 #     orderStatus VARCHAR(255),
 #     updateTime VARCHAR(255),
 #     afterSalesStatus VARCHAR(255),
-#     tags VARCHAR(255),
-#     price DECIMAL(10, 2),
-#     name VARCHAR(255),
 #     paymentMethod VARCHAR(255),
-#     category VARCHAR(255),
 #     orderDate VARCHAR(255),
 #     shopId VARCHAR(255),
 #     PRIMARY KEY (orderNo),
@@ -377,37 +371,70 @@ async def insert_shop_clearing(pool, data):
         INSERT INTO tkShopClearingInfos (
         amount,
         orderNo,
-        quantity,
-        specification,
         orderStatus,
         updateTime,
-        afterSalesStatus,
-        tags,
-        price,
-        name,
         paymentMethod,
-        category,
         orderDate,
         shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         amount = VALUES(amount),
-        quantity = VALUES(quantity),
-        specification = VALUES(specification),
         orderStatus = VALUES(orderStatus),
         updateTime = VALUES(updateTime),
-        afterSalesStatus = VALUES(afterSalesStatus),
-        tags = VALUES(tags),
-        price = VALUES(price),
-        name = VALUES(name),
         paymentMethod = VALUES(paymentMethod),
-        category = VALUES(category),
         orderDate = VALUES(orderDate)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             await cursor.execute(sql, data)
             await conn.commit()
+
+
+# 插入订单详情sql，根据下面建表写插入
+# sql = '''
+#     CREATE TABLE IF NOT EXISTS tkOrderDetailInfos (
+#     orderNo VARCHAR(255),
+#     quantity INTEGER,
+#     specification VARCHAR(255),
+#     updateTime VARCHAR(255),
+#     tags VARCHAR(255),
+#     price DECIMAL(10, 2),
+#     name VARCHAR(255),
+#     category VARCHAR(255),
+#     shopId VARCHAR(255),
+#     PRIMARY KEY (orderNo),
+#     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+#     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+#     '''
+async def insert_order_detail(pool, data):
+    sql = '''
+        INSERT INTO tkOrderDetailInfos (
+        orderNo,
+        quantity,
+        specification,
+        updateTime,
+        tags,
+        price,
+        afterSalesStatus,
+        name,
+        category,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        quantity = VALUES(quantity),
+        specification = VALUES(specification),
+        updateTime = VALUES(updateTime),
+        tags = VALUES(tags),
+        price = VALUES(price),
+        afterSalesStatus = VALUES(afterSalesStatus),
+        name = VALUES(name),
+        category = VALUES(category)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
 
 # 写一个测试插入的函数
 async def test_insert():
