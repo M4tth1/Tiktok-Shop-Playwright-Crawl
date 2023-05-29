@@ -7,16 +7,25 @@
 # @Project : tiktok_crawl
 # @Software: PyCharm
 import asyncio
-
+import configparser
 import pymysql
 import aiomysql
+import os
 from dbutils.pooled_db import PooledDB
+from utils.get_ini_config import get_config
 # python连接mysql的一些操作，需要用异步aiomysql实现
 
 
 # 创建mysql连接池，后面的函数连接都使用连接池
 async def create_pool():
-    pool = await aiomysql.create_pool(host='127.0.0.1', port=3306, user='root', password='6468467495', db='mysql', minsize=1, maxsize=10)
+    host = get_config("database_config", "host")
+    port = int(get_config("database_config", "port"))
+    user = get_config("database_config", "user")
+    password = get_config("database_config", "password")
+    db = get_config("database_config", "database")
+    minsize = int(get_config("database_config", "minsize"))
+    maxsize = int(get_config("database_config", "maxsize"))
+    pool = await aiomysql.create_pool(host=host, port=port, user=user, password=password, db=db, minsize=minsize, maxsize=maxsize)
     return pool
 
 
@@ -436,7 +445,7 @@ async def insert_order_detail(pool, data):
             await conn.commit()
 
 
-# 写一个测试插入的函数
+# 测试插入的函数
 async def test_insert():
     pool = await create_pool()
     test_data = [29.00, 27.55, '6918452303422559827', '3600144569297152275', '6918452303422559827', '已发货', '', '',
@@ -446,7 +455,6 @@ async def test_insert():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    # loop.run_until_complete(test_insert())
+    loop.run_until_complete(create_pool())
     loop.close()
-    for i in range(2, 3):
-        print(i)
+    # asyncio.run(create_pool())

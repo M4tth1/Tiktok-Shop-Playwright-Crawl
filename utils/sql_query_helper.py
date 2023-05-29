@@ -7,18 +7,25 @@
 # @Project : tiktok_crawl
 # @Software: PyCharm
 import pymysql
-
+from utils.get_ini_config import get_config
 
 def get_conn():
     """
     :return: 连接，游标
     """
     # 创建连接
-    conn = pymysql.connect(host='127.0.0.1',
-                           port=3306,
-                           user='root',
-                           password='6468467495',
-                           db='mysql')
+    host = get_config("database_config", "host")
+    port = int(get_config("database_config", "port"))
+    user = get_config("database_config", "user")
+    password = get_config("database_config", "password")
+    db = get_config("database_config", "database")
+    minsize = int(get_config("database_config", "minsize"))
+    maxsize = int(get_config("database_config", "maxsize"))
+    conn = pymysql.connect(host=host,
+                           port=port,
+                           user=user,
+                           password=password,
+                           db=db)
     # 创建游标
     cursor = conn.cursor()
     return conn, cursor

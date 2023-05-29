@@ -8,8 +8,15 @@
 # @Software: PyCharm
 import pymysql
 from dbutils.pooled_db import PooledDB
-
+from utils.get_ini_config import get_config
 # 创建mysql连接池，后面的函数连接都使用连接池
+host = get_config("database_config", "host")
+port = int(get_config("database_config", "port"))
+user = get_config("database_config", "user")
+password = get_config("database_config", "password")
+db = get_config("database_config", "database")
+minsize = int(get_config("database_config", "minsize"))
+maxsize = int(get_config("database_config", "maxsize"))
 Pool = PooledDB(
     creator=pymysql,  # 使用链接数据库的模块
     maxconnections=6,  # 连接池允许的最大连接数，0和None表示不限制连接数
@@ -20,11 +27,11 @@ Pool = PooledDB(
     maxusage=None,  # 一个链接最多被重复使用的次数，None表示无限制
     # setsession=[],  # 开始会话前执行的命令列表。如：["set datestyle to ...", "set time zone ..."]
     # ping=0,  # ping MySQL服务端，检查是否服务可用。
-    host='localhost',
-    port=3306,
-    user='root',
-    password='6468467495',
-    database='mysql',
+    host=host,
+    port=port,
+    user=user,
+    password=password,
+    database=db,
 )
 
 
@@ -388,6 +395,7 @@ def describe_tables():
     cursor.close()
     conn.close()
 
+
 def out_put_tables():
     conn = Pool.connection()
     cursor = conn.cursor()
@@ -400,9 +408,10 @@ def out_put_tables():
     cursor.close()
     conn.close()
 
+
 if __name__ == '__main__':
     show_tables()
-    drop_table()
+    # drop_table()
     # create_table()
     # create_tk_shop_basic_info()
     # create_k_score_info()

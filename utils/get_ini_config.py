@@ -11,9 +11,6 @@ import configparser
 import os
 
 
-logger = log_helper.get_logger("config_helper")
-
-
 def get_config(section, key):
     """
     读取配置文件
@@ -25,12 +22,11 @@ def get_config(section, key):
     # 获取当前文件的父目录绝对路径
     path = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     # 获取配置文件的路径
-    file_path = path + '/config/config.ini'
+    file_path = os.path.join(path, 'config.ini')
     config.read(file_path, encoding='utf-8')
     try:
         res = config.get(section, key)
     except Exception as e:
-        logger.error(e)
         res = None
     return res
 
@@ -55,7 +51,7 @@ def set_config(section, key, value):
         config.write(open(file_path, 'w'))
     except Exception as e:
         logger.error(e)
-
+        print(e)
 
 # ini配置格式
 # [mysql]
@@ -69,3 +65,12 @@ def set_config(section, key, value):
 # [redis]
 # host = localhost
 # port = 6379
+if __name__ == '__main__':
+    print(get_config("database_config", "host"))
+    print(get_config("database_config", "port"))
+    print(get_config("database_config", "user"))
+    print(get_config("database_config", "password"))
+    print(get_config("database_config", "db"))
+    print(get_config("database_config", "charset"))
+    print(get_config("redis", "host"))
+    print(get_config("redis", "port"))
