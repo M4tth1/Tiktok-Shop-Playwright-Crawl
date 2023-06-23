@@ -18,6 +18,7 @@ import hashlib
 from playwright.async_api import async_playwright
 from decimal import Decimal
 from opencv_test import get_notch_location, get_track, get_slide_track, get_track_old
+from utils.get_ini_config import get_config
 from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, \
     insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, \
     insert_shop_clearing, create_pool, close_pool, insert_order_detail
@@ -611,7 +612,8 @@ async def start_tasks():
     :return:
     """
     tasks = []
-    sem = asyncio.Semaphore(1)
+    concurrent_num = get_config('spider_config', 'concurrent_num')
+    sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
     sql = ' select phone from tkVerifyCodeInfos;'
