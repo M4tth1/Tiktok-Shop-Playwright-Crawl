@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023/5/1 13:31
 # @Author  : fuganchen
-# @Site    : 
+# @Site    :
 # @File    : playwright_test.py
 # @Project : tiktok_crawl
 # @Software: PyCharm
@@ -17,9 +17,12 @@ import asyncio
 import hashlib
 from playwright.async_api import async_playwright
 from decimal import Decimal
-from opencv_test import get_notch_location, get_track, get_slide_track,get_track_old
-from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, insert_shop_clearing, create_pool, close_pool, insert_order_detail
+from opencv_test import get_notch_location, get_track, get_slide_track, get_track_old
+from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, \
+    insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, \
+    insert_shop_clearing, create_pool, close_pool, insert_order_detail
 from utils.aiomysql_helper import exec_query, exec_query_atom
+from constant import PROJECT_DIR
 
 
 async def download_image(url, _type):
@@ -38,7 +41,7 @@ async def download_image(url, _type):
     return file_path
 
 
-async def handle_login(phone_no):
+async def handle_login(phone_no, pool):
     """
     处理登录
     :return:
@@ -63,7 +66,7 @@ async def handle_login(phone_no):
         # 消息格式{'text': '8618810362350\n【抖店】验证码7153，用于手机验证码登录，5分钟内有效。验证码提供给他人可能导致账号被盗，请勿泄露，谨防被骗。\nSIM2_小米移动_16737229683\nSubId：9\n2023-06-13 01:40:11\nHUAWEI P20'}
         for i in range(10):
             try:
-                await page.wait_for_selector(selector='img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx')
+                await page.wait_for_selector(selector='img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx', timeout=10000)
                 bg_xpath = await page.query_selector('img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx')
                 hx_xpath = await page.query_selector('img.captcha_verify_img_slide.react-draggable.sc-VigVT.ggNWOG')
                 bg_src = await bg_xpath.get_attribute('src')
@@ -89,16 +92,19 @@ async def handle_login(phone_no):
                 # 移动结束鼠标抬起
                 await page.wait_for_timeout(500)
                 await page.mouse.up()
-                await page.wait_for_selector('div.style_businessItem__2ty6K.style_todoItemPromotion__1Uv5C', timeout=3000)
-                break
+                is_failure = await (await page.query_selector('div.account-center-code-captcha.disable.active')).text_content()
+                print(is_failure)
+                if 'S' in is_failure or '重新' in is_failure:
+                    break
             except Exception as e:
+                if i == 0:
+                    # 未出现滑块验证
+                    break
                 await page.wait_for_timeout(1000)
                 print(traceback.format_exc())
                 print(e)
-        # todo 接收验证码
         time_now = datetime.datetime.now()
-        pool = await create_pool()
-        while True:
+        for i in range(20):
             await page.wait_for_timeout(5000)
             sql = 'select * from tkVerifyCodeInfos where phone = %s '
             verify_code_info = await exec_query(pool, sql, phone_no)
@@ -106,23 +112,23 @@ async def handle_login(phone_no):
             print(verify_code)
             update_time = verify_code_info[0].get('updateTime')
             update_time = datetime.datetime.strptime(str(update_time), '%Y-%m-%d %H:%M:%S')
-            # 判断update_time是否超过2分钟
-            if (update_time - time_now).seconds > 120:
+            # 判断update_time是否超过4分钟
+            if (update_time - time_now).seconds > 240:
                 print('验证码仍未接收到')
             else:
                 break
         await page.get_by_role("spinbutton", name="验证码").click()
         await page.get_by_role("spinbutton", name="验证码").fill(verify_code)
         await page.get_by_role("button", name="登录").click()
+        await page.wait_for_timeout(5000)
         storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         # await page.locator('text="下一步"').click()
         # await page.locator('text="我知道了"').click()
-        await close_pool(pool)
         await context.close()
         await browser.close()
 
 
-async def handle_shop_info_crawl(phone_no):
+async def handle_shop_info_crawl(phone_no, pool):
     # 爬取店铺名
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
@@ -132,8 +138,10 @@ async def handle_shop_info_crawl(phone_no):
         await page.goto('https://fxg.jinritemai.com/ffa/grs/qualification/shopinfo')
         login_invalid = await page.query_selector_all('text="登录"')
         if login_invalid:
-            await handle_login()
-            await page.goto('https://fxg.jinritemai.com/ffa/grs/qualification/shopinfo')
+            await page.close()
+            await context.close()
+            await browser.close()
+            return '登录失效'
         await page.wait_for_selector('div._3duiZdUahHyw8H7MW-2zvW')
         shop_info_list = await page.query_selector_all('div.ant-row._3aJWiCG93IlaU_3qf7a1Uc')
         storage_shop_info_list = list()
@@ -168,44 +176,18 @@ async def handle_shop_info_crawl(phone_no):
         print(storage_shopper_info_list)
         print(storage_shop_health_list)
         # todo excel中还有界面中未找到的数据，爬取的数据，需要补充
-        params = [None, None, None, storage_shop_info_list[2], None, None, None, storage_shop_health_list[0], None, None, storage_shop_info_list[0], storage_shop_info_list[1], None, storage_shopper_info_list[0], storage_shop_health_list[1], None]
-        pool = await create_pool()
+        params = [None, None, None, storage_shop_info_list[2], None, None, None, storage_shop_health_list[0], None,
+                  None, storage_shop_info_list[0], storage_shop_info_list[1], None, storage_shopper_info_list[0],
+                  storage_shop_health_list[1], None]
         await insert_shop_basic_info(pool, params)
-        await close_pool(pool)
+        return storage_shop_info_list[0]
 
 
-async def handle_shop_basic_info_crawl():
-    # 爬取店铺其他基本信息，未完成
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
-        page = await context.new_page()
-        await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
-        await page.wait_for_selector('div.style_businessItem__2ty6K.style_todoItemPromotion__1Uv5C')
-        shop_basic_info_list = await page.query_selector_all('div.ant-row._3aJWiCG93IlaU_3qf7a1Uc')
-        for item in shop_basic_info_list:
-            shop_basic_item = await item.query_selector('div.ant-col._2oUK91ircK4AKJrKQ8fyHD')
-            shop_basic_item_title = await item.query_selector('div.ant-col._7Qygb3VmS0-7XcXX446U4')
-            shop_basic_item_title_text = await shop_basic_item_title.text_content()
-            shop_basic_name = await shop_basic_item.text_content()
-            print(shop_basic_item_title_text, shop_basic_name)
-        shop_basicper_info_list = await page.query_selector_all('div.ant-row.index__row--D9_4Q')
-        for item in shop_basicper_info_list:
-            shop_basicper_item = await item.query_selector('div.ant-col.index__value--24QvX')
-            shop_basicper_item_title = await item.query_selector('div.ant-col.index__label--3cO2r')
-            shop_basicper_item_title_text = await shop_basicper_item_title.text_content()
-            shop_basicper_name = await shop_basicper_item.text_content()
-            print(shop_basicper_item_title_text, shop_basicper_name)
-        # print('店铺名:', shop_basic_name)
-        await context.close()
-        await browser.close()
-        
-        
-async def handle_score_info_crawl(shop_id):
+async def handle_score_info_crawl(shop_id, pool, phone_no):
     # 爬取服务体验分
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/eco/experience-score')
         await page.wait_for_selector('div.v6_wFQaGBIqvvE-')
@@ -245,7 +227,8 @@ async def handle_score_info_crawl(shop_id):
         await context.close()
         await browser.close()
         print(storage_counter_score)
-        score_params = [service_score_total.split('较昨日')[0], storage_score_info_list[2][0:4], storage_score_info_list[0][0:4], storage_score_info_list[1][0:4], score_time, shop_id]
+        score_params = [service_score_total.split('较昨日')[0], storage_score_info_list[2][0:4],
+                        storage_score_info_list[0][0:4], storage_score_info_list[1][0:4], score_time, shop_id]
         print(('超越' + service_score_total.split('超越')[1]))
         print(storage_counter_score[2])
         print(storage_counter_score[0])
@@ -253,16 +236,16 @@ async def handle_score_info_crawl(shop_id):
         print(score_time)
         print(dispute_rate)
         print(shop_id)
-        counter_params = [('超越' + service_score_total.split('超越')[1]), storage_counter_score[2], None, storage_counter_score[0], storage_counter_score[1], score_time, dispute_rate, shop_id]
-        pool = await create_pool()
+        counter_params = [('超越' + service_score_total.split('超越')[1]), storage_counter_score[2], None,
+                          storage_counter_score[0], storage_counter_score[1], score_time, dispute_rate, shop_id]
         await insert_shop_score_info(pool, score_params)
         await insert_shop_counterparts_rank(pool, counter_params)
-        await close_pool(pool)
 
-async def shop_user_assets(shop_id):
+
+async def shop_user_assets(shop_id, pool, phone_no):
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage/test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
         await page.get_by_role("button", name="知道了").click()
@@ -271,28 +254,33 @@ async def shop_user_assets(shop_id):
         page1 = await page1_info.value
         await page1.goto('https://compass.jinritemai.com/shop/business-part')
         await page1.wait_for_selector('div.cardWrapper--FiTGw.enableCheck--u536d.active--fYy_5.active_card.card_item')
-        shop_user_assets_seleted_list = await page1.query_selector_all('div.cardWrapper--FiTGw.enableCheck--u536d.active--fYy_5.active_card.card_item')
+        shop_user_assets_seleted_list = await page1.query_selector_all(
+            'div.cardWrapper--FiTGw.enableCheck--u536d.active--fYy_5.active_card.card_item')
         storage_shop_user_assets_list = list()
         for item in shop_user_assets_seleted_list:
             shop_user_assets_selected_name = await item.text_content()
             # print(shop_user_assets_selected_name)
             # print(1)
             # storage_shop_user_assets_list.append(shop_user_assets_selected_name)
-        shop_user_assets_unseleted_list = await page1.query_selector_all('div.cardWrapper--FiTGw.enableCheck--u536d.card_item')
+        shop_user_assets_unseleted_list = await page1.query_selector_all(
+            'div.cardWrapper--FiTGw.enableCheck--u536d.card_item')
         for item in shop_user_assets_unseleted_list:
             shop_user_assets_unselected_name = await item.text_content()
             # print(shop_user_assets_unselected_name)
             # print(2)
             storage_shop_user_assets_list.append(shop_user_assets_unselected_name)
         await page1.get_by_text("全店退款分析").click()
-        await page1.wait_for_selector('div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
-        shop_user_unfund_seleted_list = await page1.query_selector_all('div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
+        await page1.wait_for_selector(
+            'div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
+        shop_user_unfund_seleted_list = await page1.query_selector_all(
+            'div.cardWrapper--OrRDC.enableCheck--OmTIW.active--uvPee.active_card.card_item.secondary--tJohQ')
         for item in shop_user_unfund_seleted_list:
             shop_user_unfund_selected_name = await item.text_content()
             # print(shop_user_unfund_selected_name)
             # print(3)
             # storage_shop_user_assets_list.append(shop_user_unfund_selected_name)
-        shop_user_unfund_unseleted_list = await page1.query_selector_all('div.cardWrapper--OrRDC.enableCheck--OmTIW.card_item.secondary--tJohQ')
+        shop_user_unfund_unseleted_list = await page1.query_selector_all(
+            'div.cardWrapper--OrRDC.enableCheck--OmTIW.card_item.secondary--tJohQ')
         for item in shop_user_unfund_unseleted_list:
             shop_user_unfund_unselected_name = await item.text_content()
             # print(shop_user_unfund_unselected_name)
@@ -335,18 +323,17 @@ async def shop_user_assets(shop_id):
                     num = float(exposure_num[:-1]) * 10000  # 将字符串转为浮点数并乘以10000
                     exposure_num = int(num)  # 再将浮点数转为整数并转为字符串
         period = '30'
-        params = [period, amount, average_amount, refund_user_num, user_num, visitor_num, exposure_num, refund_amount, shop_id]
+        params = [period, amount, average_amount, refund_user_num, user_num, visitor_num, exposure_num, refund_amount,
+                  shop_id]
         print(params)
-        pool = await create_pool()
         await insert_user_assets(pool, params)
-        await close_pool(pool)
 
 
-async def shop_orders_info_crawl(shop_id):
+async def shop_orders_info_crawl(shop_id, pool, phone_no):
     # 订单详情
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
         await page.get_by_role("button", name="right").click()
@@ -373,7 +360,9 @@ async def shop_orders_info_crawl(shop_id):
             tr_test_text = await tr_test.text_content()
             tr_temp_list.append(tr_test_text)
             # 订单详情栏
-        tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.auxo-pair-group-row-last.row-vertical-top.index_table-row__ULgxX', 'tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
+        tab_name = [
+            'tr.auxo-table-row.auxo-table-row-level-1.auxo-pair-group-row-last.row-vertical-top.index_table-row__ULgxX',
+            'tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
         tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
         payment_method_list = list()
         amount_list = list()
@@ -438,7 +427,7 @@ async def shop_orders_info_crawl(shop_id):
         for index, value in enumerate(order_index_list):
             box_quantity_all = 0
             if index + 1 < len(order_index_list):
-                for i in range(order_index_list[index]+1, order_index_list[index+1]):
+                for i in range(order_index_list[index] + 1, order_index_list[index + 1]):
                     box_text = tr_temp_list[i]
                     try:
                         sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
@@ -447,7 +436,7 @@ async def shop_orders_info_crawl(shop_id):
                         box_quantity_all += 0
                 box_quantity_all_list.append(box_quantity_all)
             else:
-                for i in range(order_index_list[index]+1, len(tr_temp_list)):
+                for i in range(order_index_list[index] + 1, len(tr_temp_list)):
                     box_text = tr_temp_list[i]
                     try:
                         sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
@@ -458,33 +447,31 @@ async def shop_orders_info_crawl(shop_id):
         # # todo 数据更新时间
         update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         goods_index = 0
-        pool = await create_pool()
         for index, num in enumerate(box_quantity_all_list):
             for i in range(goods_index, goods_index + num):
                 print(after_sales_status_list[i])
-                goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i], price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
+                goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i],
+                                price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
                 await insert_order_detail(pool, goods_params)
             goods_index += num
-            order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time, payment_method_list[index], head_list[index][1], shop_id]
+            order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time,
+                            payment_method_list[index], head_list[index][1], shop_id]
             await insert_shop_clearing(pool, order_params)
-        # print(len(goods_params_list), goods_params_list)
-        # print(len(order_params_list), order_params_list)
-        # todo 数据入库
-        await close_pool(pool)
         await context.close()
         await browser.close()
 
 
-async def shop_not_clear_orders_info_crawl(shop_id):
+async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no):
     # 待结算订单详情
     # todo 待结算时间选取
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/finance/order-list')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
-        not_clear_order_info_list = await page.query_selector_all('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
+        not_clear_order_info_list = await page.query_selector_all(
+            'tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
         print(len(not_clear_order_info_list))
         params_list = list()
         for not_clear_order_info in not_clear_order_info_list:
@@ -517,24 +504,25 @@ async def shop_not_clear_orders_info_crawl(shop_id):
                 payment_amt = Decimal(temp_params_list[7].split('¥')[1]).quantize(Decimal('0.00'))
             if temp_params_list[9] != '':
                 pre_clear_amt = Decimal(temp_params_list[9].split('¥')[1]).quantize(Decimal('0.00'))
-            params_list.append([payment_amt, pre_clear_amt, temp_params_list[0], temp_params_list[2], temp_params_list[1], temp_params_list[3], temp_params_list[4], finish_date, update_time, temp_params_list[8], order_date, shop_id])
+            params_list.append(
+                [payment_amt, pre_clear_amt, temp_params_list[0], temp_params_list[2], temp_params_list[1],
+                 temp_params_list[3], temp_params_list[4], finish_date, update_time, temp_params_list[8], order_date,
+                 shop_id])
         await context.close()
         await browser.close()
-        pool = await create_pool()
         for param in params_list:
             print(param)
             await insert_shop_no_clearing(pool, param)
-        await close_pool(pool)
 
 
-async def shop_daily_bill_crawl(shop_id):
+async def shop_daily_bill_crawl(shop_id, pool, phone_no):
     # 待结算订单详情
     # todo 是否需要翻页
     date_pattern = r'\d{4}-\d{2}-\d{2}'  # 匹配日期
     money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
@@ -552,25 +540,25 @@ async def shop_daily_bill_crawl(shop_id):
                 if index == 0:
                     continue
                 money_list[index] = Decimal(value).quantize(Decimal('0.00'))
-            params.append([money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4], shop_id])
+            params.append(
+                [money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],
+                 shop_id])
         await page.wait_for_timeout(2000)
         await context.close()
         await browser.close()
-        pool = await create_pool()
         for param in params:
             print(param)
             await insert_shop_daily_bill(pool, param)
-        await close_pool(pool)
 
 
-async def shop_monthly_bill_crawl(shop_id):
+async def shop_monthly_bill_crawl(shop_id, pool, phone_no):
     # 待结算订单详情
     daily_pattern = r'\d{4}-\d{2}-\d{2}'
     date_pattern = r'\d{4}-\d{2}'  # 匹配日期
     money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=r'G:\workspace\tiktok_crawl\storage\test.json')
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
@@ -596,70 +584,71 @@ async def shop_monthly_bill_crawl(shop_id):
                 print(index, value)
                 if value.endswith('-'):
                     value = value.replace('-', '')
-                    money_list[index+1] = '-' + money_list[index+1]
+                    money_list[index + 1] = '-' + money_list[index + 1]
                 money_list[index] = Decimal(value).quantize(Decimal('0.00'))
-            params.append([money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],shop_id])
+            params.append(
+                [money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],
+                 shop_id])
             # order_payment_info_text = await (await monthly_bill_info.query_selector('td.auxo-table-cell')).text_content()
         await context.close()
         await browser.close()
-        pool = await create_pool()
         for param in params:
             print(param)
             await insert_shop_month_bill(pool, param)
-        await close_pool(pool)
 
 
-def download_main():
+def crawl_main():
+    """
+    爬取主函数
+    :return:
+    """
     asyncio.run(start_tasks())
 
 
 async def start_tasks():
+    """
+    开始任务
+    :return:
+    """
     tasks = []
     sem = asyncio.Semaphore(1)
-    dsn = 'postgresql://postgres:6468467495@localhost:5432/url_info'
-    pool = await create_pool(dsn)
-    sql = ' select content from temp.fraud_apk_url_link where is_crawl = 0 and id = 15555;'
-    results = await execute_query(pool, sql)
+    # todo 并发数改到配置文件
+    pool = await create_pool()
+    sql = ' select phone from tkVerifyCodeInfos;'
+    results = await exec_query(pool, sql)
     for result in results:
-        url = result.get('content')
-        tasks.append(asyncio.wait_for(start_crawl(url, sem, pool), timeout=1200))
+        phone_no = result.get('phone')
+        tasks.append(asyncio.wait_for(start_crawl(phone_no, sem, pool), timeout=1200))
     task_list = await asyncio.gather(*tasks, return_exceptions=True)
     await close_pool(pool)
 
 
-async def start_crawl(url, sem, pool):
+async def start_crawl(phone_no, sem, pool):
+    """
+    开始爬取
+    :param phone_no:
+    :param sem:
+    :param pool:
+    :return:
+    """
     async with sem:
-        res = await do_task(url)
-        print(res)
-        params = [(new_url, ) for new_url in res]
-        print(params)
-        insert_sql = "insert into temp.fraud_apk_url_link (content) values ($1) on conflict do nothing; "
-        await exec_many_sql(pool, insert_sql, params)
-        update_sql = "update temp.fraud_apk_url_link set is_crawl = 1 where content = $1; "
-        # await exec_sql(pool, update_sql, url)
-
+        storage_path = os.path.join(PROJECT_DIR, 'storage', phone_no + '.json')
+        if not os.path.exists(storage_path):
+            await handle_login(phone_no, pool)
+        try:
+            shop_id = await handle_shop_info_crawl(phone_no, pool)
+            if shop_id == '登录失效':
+                await handle_login(phone_no, pool)
+                shop_id = await handle_shop_info_crawl(phone_no, pool)
+            await handle_score_info_crawl(shop_id, pool)
+            await shop_user_assets(shop_id, pool)
+            await shop_orders_info_crawl(shop_id, pool)
+            await shop_not_clear_orders_info_crawl(shop_id, pool)
+            await shop_daily_bill_crawl(shop_id, pool)
+            await shop_monthly_bill_crawl(shop_id, pool)
+        except Exception as e:
+            traceback.print_exc()
 
 
 if __name__ == '__main__':
-    # asyncio.run(handle_login())
-    # asyncio.run(handle_shop_info_crawl())
-    # asyncio.run(handle_shop_basic_info_crawl()) 不需要
-    # asyncio.run(handle_score_info_crawl())
-    # asyncio.run(shop_user_assets())
-    # asyncio.run(shop_orders_info_crawl())
-    # asyncio.run(shop_not_clear_orders_info_crawl())
-    # asyncio.run(shop_daily_bill_crawl())
-    # asyncio.run(shop_monthly_bill_crawl())
-
-
-    loop = asyncio.get_event_loop()
-    # loop.run_until_complete(handle_login())
-    # loop.run_until_complete(handle_shop_info_crawl())
-    # loop.run_until_complete(handle_shop_basic_info_crawl()) 不需要
-    # loop.run_until_complete(handle_score_info_crawl('4018100'))
-    # loop.run_until_complete(shop_user_assets('4018100'))
-    loop.run_until_complete(shop_orders_info_crawl('4018100'))
-    # loop.run_until_complete(shop_not_clear_orders_info_crawl('4018100'))
-    # loop.run_until_complete(shop_daily_bill_crawl('4018100'))
-    # loop.run_until_complete(shop_monthly_bill_crawl('4018100'))
-    loop.close()
+    crawl_main()

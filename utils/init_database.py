@@ -361,6 +361,24 @@ def create_tk_order_detail_infos():
     conn.close()
 
 
+def create_tk_verify_code_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 限制phone为主键，且phone唯一
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkVerifyCodeInfos (
+    phone VARCHAR(255),
+    verifyCode VARCHAR(255),
+    updateTime VARCHAR(255),
+    PRIMARY KEY (phone)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+
 # 删除上述创建的所有表
 def drop_table():
     conn = Pool.connection()
@@ -420,8 +438,9 @@ if __name__ == '__main__':
     # create_tk_shop_monthly_bill_infos()
     # create_tk_shop_daily_bill_infos()
     # create_tk_shop_no_clearing_infos()
-    create_tk_shop_clearing_infos()
-    create_tk_order_detail_infos()
+    # create_tk_shop_clearing_infos()
+    # create_tk_order_detail_infos()
+    create_tk_verify_code_infos()
     show_tables()
     describe_tables()
 
