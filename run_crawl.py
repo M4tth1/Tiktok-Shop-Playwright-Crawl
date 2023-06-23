@@ -33,7 +33,7 @@ async def download_image(url, _type):
         file_suffix = 'png'
     # file_name = str(time.time()).replace('.', '')
     file_name = hashlib.md5(url.encode('utf-8')).hexdigest()
-    file_path = os.path.join('temp', file_name + '.' + file_suffix)
+    file_path = os.path.join(PROJECT_DIR, 'temp', file_name + '.' + file_suffix)
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             data = await response.read()
