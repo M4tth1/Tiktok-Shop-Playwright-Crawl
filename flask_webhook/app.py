@@ -7,7 +7,7 @@
 # @Project : flask_webhook
 # @Software: PyCharm
 from flask import Flask, request
-from model.store_verify_code import insert_verify_code
+from store_verify_code import insert_verify_code
 app = Flask(__name__)
 
 
