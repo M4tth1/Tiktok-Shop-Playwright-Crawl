@@ -46,3 +46,6 @@ flask run --host=0.0.0.0 --port=5000
 注：
 
 [![image-20230626115158981.png](https://i.postimg.cc/5NjFjRXz/image-20230626115158981.png)](https://postimg.cc/TpMP4Qq2)
+
+
+### todo 爬用户资产的时候出现弹窗
