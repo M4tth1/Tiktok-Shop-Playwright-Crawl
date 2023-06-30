@@ -112,6 +112,7 @@ async def handle_login(phone_no, pool):
             verify_code = verify_code_info[0].get('verifyCode')
             print(verify_code)
             update_time = verify_code_info[0].get('updateTime')
+            print(update_time)
             update_time = datetime.datetime.strptime(str(update_time), '%Y-%m-%d %H:%M:%S')
             # 判断update_time是否超过4分钟
             if (update_time - time_now).seconds > 240:
@@ -137,12 +138,21 @@ async def handle_shop_info_crawl(phone_no, pool):
         page = await context.new_page()
         page1 = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/grs/qualification/shopinfo')
-        login_invalid = await page.query_selector_all('text="登录"')
+        await page.wait_for_load_state('networkidle')
+        cur_url = page.url
+        login_invalid = False
+        if 'fxg.jinritemai.com/login' in cur_url:
+            login_invalid = True
         if login_invalid:
             await page.close()
             await context.close()
             await browser.close()
             return '登录失效'
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.wait_for_selector('div._3duiZdUahHyw8H7MW-2zvW')
         shop_info_list = await page.query_selector_all('div.ant-row._3aJWiCG93IlaU_3qf7a1Uc')
         storage_shop_info_list = list()
@@ -164,6 +174,16 @@ async def handle_shop_info_crawl(phone_no, pool):
             storage_shopper_info_list.append(shopper_name)
         # print('店铺名:', shop_name)
         await page1.goto('https://fxg.jinritemai.com/ffa/grs/health-center')
+        try:
+            await page1.locator('text="退出引导"').click(timeout=2000)
+            await page1.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
+        try:
+            await page.locator('text="我已知悉"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无知悉弹窗')
         await page1.wait_for_selector('div._2hOhdOZVPf0Qbj42CHxJKp')
         shop_health_list = await page1.query_selector_all('div._2hOhdOZVPf0Qbj42CHxJKp')
         storage_shop_health_list = list()
@@ -191,6 +211,11 @@ async def handle_score_info_crawl(shop_id, pool, phone_no):
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/eco/experience-score')
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.wait_for_selector('div.v6_wFQaGBIqvvE-')
         service_score_total = await (await page.query_selector('div.v6_wFQaGBIqvvE-')).text_content()
         # print('服务分总分:', service_score_total)
@@ -250,6 +275,11 @@ async def shop_user_assets(shop_id, pool, phone_no):
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
         await page.get_by_role("button", name="知道了").click()
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         async with page.expect_popup() as page1_info:
             await page.get_by_text("查看更多数据").click()
         page1 = await page1_info.value
@@ -337,6 +367,11 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no):
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.get_by_role("button", name="right").click()
         await page.wait_for_timeout(5000)
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
@@ -470,6 +505,11 @@ async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no):
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/finance/order-list')
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
         not_clear_order_info_list = await page.query_selector_all(
             'tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top')
@@ -526,6 +566,11 @@ async def shop_daily_bill_crawl(shop_id, pool, phone_no):
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
         daily_bill_info_list = await page.query_selector_all('tr.auxo-table-row.auxo-table-row-level-0')
         print(len(daily_bill_info_list))
@@ -562,6 +607,11 @@ async def shop_monthly_bill_crawl(shop_id, pool, phone_no):
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
         await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0')
         await page.get_by_role("tab", name="月账单").click()
         # await page.wait_for_selector('div.AKUX6LtcTT0YGWqqnWk3')
@@ -616,7 +666,7 @@ async def start_tasks():
     sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
-    sql = ' select phone from tkVerifyCodeInfos;'
+    sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
     results = await exec_query(pool, sql)
     for result in results:
         phone_no = result.get('phone')
@@ -642,12 +692,12 @@ async def start_crawl(phone_no, sem, pool):
             if shop_id == '登录失效':
                 await handle_login(phone_no, pool)
                 shop_id = await handle_shop_info_crawl(phone_no, pool)
-            await handle_score_info_crawl(shop_id, pool)
-            await shop_user_assets(shop_id, pool)
-            await shop_orders_info_crawl(shop_id, pool)
-            await shop_not_clear_orders_info_crawl(shop_id, pool)
-            await shop_daily_bill_crawl(shop_id, pool)
-            await shop_monthly_bill_crawl(shop_id, pool)
+            await handle_score_info_crawl(shop_id, pool, phone_no)
+            await shop_user_assets(shop_id, pool, phone_no)
+            await shop_orders_info_crawl(shop_id, pool, phone_no)
+            await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no)
+            await shop_daily_bill_crawl(shop_id, pool, phone_no)
+            await shop_monthly_bill_crawl(shop_id, pool, phone_no)
         except Exception as e:
             traceback.print_exc()
 
