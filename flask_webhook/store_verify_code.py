@@ -6,9 +6,13 @@
 # @File    : store_verify_code.py
 # @Project : flask_webhook
 # @Software: PyCharm
+import os
+import sys
 import datetime
-
 import pymysql
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(PROJECT_DIR)
+sys.path.append(PROJECT_DIR)
 from utils.get_ini_config import get_config
 
 
