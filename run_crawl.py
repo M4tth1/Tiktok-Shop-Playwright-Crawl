@@ -23,7 +23,6 @@ from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_in
     insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, \
     insert_shop_clearing, create_pool, close_pool, insert_order_detail
 from utils.aiomysql_helper import exec_query, exec_query_atom
-from flask_webhook.get_proxy import test_proxy, delete_proxy
 from constant import PROJECT_DIR
 
 
