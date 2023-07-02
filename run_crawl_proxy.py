@@ -43,13 +43,13 @@ async def download_image(url, _type):
     return file_path
 
 
-async def handle_login(phone_no, pool):
+async def handle_login(phone_no, pool, proxy):
     """
     处理登录
     :return:
     """
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context()
         page = await context.new_page()
         await page.goto("https://fxg.jinritemai.com/login")
@@ -131,10 +131,26 @@ async def handle_login(phone_no, pool):
         await browser.close()
 
 
-async def handle_shop_info_crawl(phone_no, pool):
+async def handle_baidu_info_crawl(phone_no, pool, proxy):
     # 爬取店铺名
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
+        context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
+        page = await context.new_page()
+        page1 = await context.new_page()
+        await page.goto('https://www.baidu.com/')
+        await page.wait_for_load_state('networkidle')
+        cur_url = page.url
+        await page.wait_for_timeout(10000)
+        await page.close()
+        await context.close()
+        await browser.close()
+
+
+async def handle_shop_info_crawl(phone_no, pool, proxy):
+    # 爬取店铺名
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy), 'https': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         page1 = await context.new_page()
@@ -206,10 +222,10 @@ async def handle_shop_info_crawl(phone_no, pool):
         return storage_shop_info_list[0]
 
 
-async def handle_score_info_crawl(shop_id, pool, phone_no):
+async def handle_score_info_crawl(shop_id, pool, phone_no, proxy):
     # 爬取服务体验分
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/eco/experience-score')
@@ -244,9 +260,9 @@ async def handle_score_info_crawl(shop_id, pool, phone_no):
         await insert_shop_counterparts_rank(pool, counter_params)
 
 
-async def shop_user_assets(shop_id, pool, phone_no):
+async def shop_user_assets(shop_id, pool, phone_no, proxy):
     async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=False)
+        browser = await p.firefox.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/mshop/homepage/index')
@@ -356,10 +372,10 @@ async def shop_user_assets(shop_id, pool, phone_no):
         await insert_user_assets(pool, params)
 
 
-async def shop_orders_info_crawl(shop_id, pool, phone_no):
+async def shop_orders_info_crawl(shop_id, pool, phone_no, proxy):
     # 订单详情
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
@@ -514,11 +530,11 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no):
         await browser.close()
 
 
-async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no):
+async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, proxy):
     # 待结算订单详情
     # todo 待结算时间选取
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/finance/order-list')
@@ -583,13 +599,13 @@ async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no):
             await insert_shop_no_clearing(pool, param)
 
 
-async def shop_daily_bill_crawl(shop_id, pool, phone_no):
+async def shop_daily_bill_crawl(shop_id, pool, phone_no, proxy):
     # 待结算订单详情
     # todo 是否需要翻页
     date_pattern = r'\d{4}-\d{2}-\d{2}'  # 匹配日期
     money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
@@ -639,13 +655,13 @@ async def shop_daily_bill_crawl(shop_id, pool, phone_no):
             await insert_shop_daily_bill(pool, param)
 
 
-async def shop_monthly_bill_crawl(shop_id, pool, phone_no):
+async def shop_monthly_bill_crawl(shop_id, pool, phone_no, proxy):
     # 待结算订单详情
     daily_pattern = r'\d{4}-\d{2}-\d{2}'
     date_pattern = r'\d{4}-\d{2}'  # 匹配日期
     money_pattern = r'(?<=¥)[\d,]+(\.\d{2})?'  # 匹配金额，使用正向零宽度断言 (?<=¥) 查找¥符号后面的数字
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=False, proxy={'server': 'http://{}'.format(proxy)})
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/p-new/online-bill')
@@ -738,19 +754,24 @@ async def start_crawl(phone_no, sem, pool):
     """
     async with sem:
         storage_path = os.path.join(PROJECT_DIR, 'storage', phone_no + '.json')
+        proxy = test_proxy()
+        print(proxy)
+        proxy = '222.138.76.6:9002'
         if not os.path.exists(storage_path):
-            await handle_login(phone_no, pool)
+            await handle_login(phone_no, pool, proxy)
         try:
-            shop_id = await handle_shop_info_crawl(phone_no, pool)
+            await handle_baidu_info_crawl(phone_no,pool, proxy)
+            shop_id = await handle_shop_info_crawl(phone_no, pool, proxy)
             if shop_id == '登录失效':
-                await handle_login(phone_no, pool)
-                shop_id = await handle_shop_info_crawl(phone_no, pool)
-            await handle_score_info_crawl(shop_id, pool, phone_no)
-            await shop_user_assets(shop_id, pool, phone_no)
-            await shop_orders_info_crawl(shop_id, pool, phone_no)
-            await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no)
-            await shop_daily_bill_crawl(shop_id, pool, phone_no)
-            await shop_monthly_bill_crawl(shop_id, pool, phone_no)
+                await handle_login(phone_no, pool, proxy)
+                shop_id = await handle_shop_info_crawl(phone_no, pool, proxy)
+            await handle_score_info_crawl(shop_id, pool, phone_no, proxy)
+            await shop_user_assets(shop_id, pool, phone_no, proxy)
+            await shop_orders_info_crawl(shop_id, pool, phone_no, proxy)
+            await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, proxy)
+            await shop_daily_bill_crawl(shop_id, pool, phone_no, proxy)
+            await shop_monthly_bill_crawl(shop_id, pool, phone_no, proxy)
+            delete_proxy(proxy)
         except Exception as e:
             traceback.print_exc()
 
