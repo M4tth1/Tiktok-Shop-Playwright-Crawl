@@ -718,7 +718,7 @@ async def start_tasks():
     sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
-    sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
+    sql = ' select phone from tkVerifyCodeInfos;'
     results = await exec_query(pool, sql)
     for result in results:
         phone_no = result.get('phone')
