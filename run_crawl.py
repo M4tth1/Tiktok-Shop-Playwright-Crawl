@@ -51,18 +51,29 @@ async def handle_login(phone_no, pool):
         browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()
         page = await context.new_page()
-        await page.goto("https://fxg.jinritemai.com/login")
-        await page.wait_for_selector('span.account-center-code-text')
-        await page.locator("rect").nth(1).click()
+        await page.goto("https://fxg.jinritemai.com/login/common")
+        await page.goto("https://fxg.jinritemai.com/login/")
+        await page.wait_for_timeout(10000)
+        try:
+            # await page.wait_for_selector('div.account-center-qrcode-title', timeout=5000)
+            is_email_login = await page.query_selector('div.account-center-switch-button.switch-switch.false.email')
+            if not is_email_login:
+                await page.locator("rect").nth(1).click(timeout=5000)
+        except Exception as e:
+            await page.wait_for_selector('div.login-switcher--qr', timeout=5000)
+            switch_button = await page.query_selector('div.login-switcher--qr')
+            await switch_button.click(timeout=5000)
         # await page.get_by_text("邮箱登录", exact=True).click()
         # await page.get_by_placeholder("请输入邮箱").click()
         # await page.get_by_placeholder("请输入邮箱").fill("1208879081@qq.com")
         # await page.get_by_placeholder("密码").click()
         # await page.get_by_placeholder("密码").fill("JIAOkai123.")
         # await page.get_by_role("button", name="登录").click()
+
         await page.get_by_placeholder("请输入手机号码").click()
         await page.get_by_placeholder("请输入手机号码").fill(phone_no)
         await page.get_by_text("发送验证码").click()
+        print('发送验证码成功')
         # todo 等待获取验证码
         # 消息格式{'text': '8618810362350\n【抖店】验证码7153，用于手机验证码登录，5分钟内有效。验证码提供给他人可能导致账号被盗，请勿泄露，谨防被骗。\nSIM2_小米移动_16737229683\nSubId：9\n2023-06-13 01:40:11\nHUAWEI P20'}
         for i in range(10):
@@ -268,6 +279,7 @@ async def shop_user_assets(shop_id, pool, phone_no):
         async with page.expect_popup() as page1_info:
             detail_tag = (await page.query_selector_all('div.styles_compassTitle__2rmc2'))[0]
             await detail_tag.click()
+            await page.wait_for_timeout(10000)
         page1 = await page1_info.value
         await page1.goto('https://compass.jinritemai.com/shop/business-part')
         await page1.wait_for_load_state('networkidle')
@@ -360,6 +372,10 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
         context = await browser.new_context(storage_state=r'.\storage\{}.json'.format(phone_no))
+        date_now = datetime.datetime.now().strftime('%Y-%m-%d')
+        # 四天前
+        date_four_days_ago = (datetime.datetime.now() - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
+        check_point = False
         page = await context.new_page()
         await page.goto('https://fxg.jinritemai.com/ffa/morder/order/list')
         try:
@@ -377,138 +393,143 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no):
             await page.wait_for_load_state('networkidle')
         except:
             print('无我已知悉弹窗')
-        await page.get_by_role("button", name="right").click()
-        await page.wait_for_timeout(5000)
-        await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
-        params_list = list()
-        # 标签栏
-        head_list = list()
-        pre_head_info_list = await page.query_selector_all('span.auxo-pair-head-wrapper')
-        for pre_head_info in pre_head_info_list:
-            order_no_list = await pre_head_info.query_selector_all('span.index_text__3y09K')
-            temp_list = list()
-            for order_no in order_no_list:
-                order_no = await order_no.text_content()
-                order_no = order_no.replace('\xa0', ' ')
-                order_no = order_no.replace('/', '-')
-                order_no = order_no.split(' ')[1]
-                temp_list.append(order_no)
-            head_list.append([temp_list[0], temp_list[1]])
-        tr_temp_list = list()
-        tr_test_list = await page.query_selector_all('tr')
-        order_index_list = list()
-        for tr_test in tr_test_list:
-            tr_test_text = await tr_test.text_content()
-            tr_temp_list.append(tr_test_text)
-            # 订单详情栏
-        tab_name = [
-            'tr.auxo-table-row.auxo-table-row-level-1.auxo-pair-group-row-last.row-vertical-top.index_table-row__ULgxX',
-            'tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
-        tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
-        payment_method_list = list()
-        amount_list = list()
-        order_status_list = list()
-        after_sales_status_list = list()
-        tags_list = list()
-        name_list = list()
-        specification_list = list()
-        quantity_list = list()
-        price_list = list()
-        for sub_tab in tab_name:
-            shop_order_info_list = await page.query_selector_all(sub_tab)
-            # print(len(shop_order_info_list))
-            for shop_order_info in shop_order_info_list:
-                box_text_temp_list = list()
-                order_payment_info_list = await shop_order_info.query_selector_all('td.auxo-table-cell')
-                sub_box_num = 0
-                for box_item in order_payment_info_list:
-                    sub_box_num += 1
-                    if sub_box_num == 2:
-                        # todo 点商品
-                        await box_item.click()
-                    try:
-                        goods_info_list = await box_item.query_selector_all('div.style_ellipsis___6v1-.undefined')
-                        tags = await box_item.query_selector('div.style_tags__1hgJ9')
-                        if tags:
-                            tags_text = await tags.text_content()
-                            tags_list.append(tags_text)
-                        goods_text_list = list()
-                        for goods_info in goods_info_list:
-                            goods_info_text = await goods_info.text_content()
-                            goods_text_list.append(goods_info_text)
-                        if len(goods_text_list) >= 3:
-                            name = goods_text_list[0]
-                            specification = goods_text_list[1].split('x')[0]
-                            quantity = goods_text_list[1].split('x')[1]
-                            name_list.append(name)
-                            quantity_list.append(int(quantity))
-                            specification_list.append(specification)
-                    except Exception as e:
-                        print(e)
-                    box_text = await box_item.text_content()
-                    box_text_temp_list.append(box_text)
-                    if '¥' in box_text and 'x' not in box_text:
-                        # 支付方式
-                        # 总金额
-                        payment_method = box_text.split('¥')[0]
-                        amount = Decimal(box_text.split('¥')[1]).quantize(Decimal('0.00'))
-                        payment_method_list.append(payment_method)
-                        amount_list.append(amount)
-                if len(box_text_temp_list) >= 3:
-                    price = Decimal(box_text_temp_list[2].split('¥')[1].split('x')[0]).quantize(Decimal('0.00'))
-                    price_list.append(price)
-                    after_sales_status = box_text_temp_list[3].replace('-', '')
-                    after_sales_status_list.append(after_sales_status)
-                if len(box_text_temp_list) > 7:
-                    order_status_list.append(box_text_temp_list[-2])
-        for index, value in enumerate(tr_temp_list):
-            if '订单编号' in value:
-                order_index_list.append(index)
-        box_quantity_all_list = list()
-        for index, value in enumerate(order_index_list):
-            box_quantity_all = 0
-            if index + 1 < len(order_index_list):
-                for i in range(order_index_list[index] + 1, order_index_list[index + 1]):
-                    box_text = tr_temp_list[i]
-                    try:
-                        sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
-                        box_quantity_all += sub_box_quantity_all
-                    except Exception as e:
-                        box_quantity_all += 0
-                box_quantity_all_list.append(box_quantity_all)
-            else:
-                for i in range(order_index_list[index] + 1, len(tr_temp_list)):
-                    box_text = tr_temp_list[i]
-                    try:
-                        sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
-                        box_quantity_all += sub_box_quantity_all
-                    except Exception as e:
-                        box_quantity_all += 0
-                box_quantity_all_list.append(box_quantity_all)
-        # # todo 数据更新时间
-        update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        goods_index = 0
-        print('head_list', head_list)
-        print('box_quantity_all_list', box_quantity_all_list)
-        print('quantity_list', quantity_list)
-        print('specification_list', specification_list)
-        print('tags_list', tags_list)
-        print('price_list', price_list)
-        print('after_sales_status_list', after_sales_status_list)
-        print('name_list', name_list)
-        print('amount_list', amount_list)
-        print('order_status_list', order_status_list)
-        print('payment_method_list', payment_method_list)
-        for index, num in enumerate(box_quantity_all_list):
-            for i in range(goods_index, goods_index + num):
-                print(after_sales_status_list[i])
-                goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i],
-                                price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
-                await insert_order_detail(pool, goods_params)
-            goods_index += num
-            order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time,
-                            payment_method_list[index], head_list[index][1], shop_id]
-            await insert_shop_clearing(pool, order_params)
+        while check_point is False:
+            print('check_point', check_point)
+            await page.wait_for_load_state('domcontentloaded')
+            await page.wait_for_timeout(5000)
+            await page.wait_for_selector('tr.auxo-table-row.auxo-table-row-level-0.row-vertical-top.index_table-row__ULgxX')
+            params_list = list()
+            # 标签栏
+            head_list = list()
+            pre_head_info_list = await page.query_selector_all('span.auxo-pair-head-wrapper')
+            for pre_head_info in pre_head_info_list:
+                order_no_list = await pre_head_info.query_selector_all('span.index_text__3y09K')
+                temp_list = list()
+                for order_no in order_no_list:
+                    order_no = await order_no.text_content()
+                    order_no = order_no.replace('\xa0', ' ')
+                    order_no = order_no.replace('/', '-')
+                    order_no = order_no.split(' ')[1]
+                    temp_list.append(order_no)
+                head_list.append([temp_list[0], temp_list[1]])
+                if temp_list[1] < date_four_days_ago:
+                    check_point = True
+            tr_temp_list = list()
+            tr_test_list = await page.query_selector_all('tr')
+            order_index_list = list()
+            for tr_test in tr_test_list:
+                tr_test_text = await tr_test.text_content()
+                tr_temp_list.append(tr_test_text)
+                # 订单详情栏
+            tab_name = [
+                'tr.auxo-table-row.auxo-table-row-level-1.auxo-pair-group-row-last.row-vertical-top.index_table-row__ULgxX',
+                'tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
+            tab_name = ['tr.auxo-table-row.auxo-table-row-level-1.row-vertical-top.index_table-row__ULgxX']
+            payment_method_list = list()
+            amount_list = list()
+            order_status_list = list()
+            after_sales_status_list = list()
+            tags_list = list()
+            name_list = list()
+            specification_list = list()
+            quantity_list = list()
+            price_list = list()
+            for sub_tab in tab_name:
+                shop_order_info_list = await page.query_selector_all(sub_tab)
+                # print(len(shop_order_info_list))
+                for shop_order_info in shop_order_info_list:
+                    box_text_temp_list = list()
+                    order_payment_info_list = await shop_order_info.query_selector_all('td.auxo-table-cell')
+                    sub_box_num = 0
+                    for box_item in order_payment_info_list:
+                        sub_box_num += 1
+                        if sub_box_num == 2:
+                            # todo 点商品
+                            await box_item.click()
+                        try:
+                            goods_info_list = await box_item.query_selector_all('div.style_ellipsis___6v1-.undefined')
+                            tags = await box_item.query_selector('div.style_tags__1hgJ9')
+                            if tags:
+                                tags_text = await tags.text_content()
+                                tags_list.append(tags_text)
+                            goods_text_list = list()
+                            for goods_info in goods_info_list:
+                                goods_info_text = await goods_info.text_content()
+                                goods_text_list.append(goods_info_text)
+                            if len(goods_text_list) >= 3:
+                                name = goods_text_list[0]
+                                specification = goods_text_list[1].split('x')[0]
+                                quantity = goods_text_list[1].split('x')[1]
+                                name_list.append(name)
+                                quantity_list.append(int(quantity))
+                                specification_list.append(specification)
+                        except Exception as e:
+                            print(e)
+                        box_text = await box_item.text_content()
+                        box_text_temp_list.append(box_text)
+                        if '¥' in box_text and 'x' not in box_text:
+                            # 支付方式
+                            # 总金额
+                            payment_method = box_text.split('¥')[0]
+                            amount = Decimal(box_text.split('¥')[1]).quantize(Decimal('0.00'))
+                            payment_method_list.append(payment_method)
+                            amount_list.append(amount)
+                    if len(box_text_temp_list) >= 3:
+                        price = Decimal(box_text_temp_list[2].split('¥')[1].split('x')[0]).quantize(Decimal('0.00'))
+                        price_list.append(price)
+                        after_sales_status = box_text_temp_list[3].replace('-', '')
+                        after_sales_status_list.append(after_sales_status)
+                    if len(box_text_temp_list) > 7:
+                        order_status_list.append(box_text_temp_list[-2])
+            for index, value in enumerate(tr_temp_list):
+                if '订单编号' in value:
+                    order_index_list.append(index)
+            box_quantity_all_list = list()
+            for index, value in enumerate(order_index_list):
+                box_quantity_all = 0
+                if index + 1 < len(order_index_list):
+                    for i in range(order_index_list[index] + 1, order_index_list[index + 1]):
+                        box_text = tr_temp_list[i]
+                        try:
+                            sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
+                            box_quantity_all += sub_box_quantity_all
+                        except Exception as e:
+                            box_quantity_all += 0
+                    box_quantity_all_list.append(box_quantity_all)
+                else:
+                    for i in range(order_index_list[index] + 1, len(tr_temp_list)):
+                        box_text = tr_temp_list[i]
+                        try:
+                            sub_box_quantity_all = int(box_text.split('x')[1].split('商家编码')[0])
+                            box_quantity_all += sub_box_quantity_all
+                        except Exception as e:
+                            box_quantity_all += 0
+                    box_quantity_all_list.append(box_quantity_all)
+            # # todo 数据更新时间
+            update_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            goods_index = 0
+            print('head_list', head_list)
+            print('box_quantity_all_list', box_quantity_all_list)
+            print('quantity_list', quantity_list)
+            print('specification_list', specification_list)
+            print('tags_list', tags_list)
+            print('price_list', price_list)
+            print('after_sales_status_list', after_sales_status_list)
+            print('name_list', name_list)
+            print('amount_list', amount_list)
+            print('order_status_list', order_status_list)
+            print('payment_method_list', payment_method_list)
+            for index, num in enumerate(box_quantity_all_list):
+                for i in range(goods_index, goods_index + num):
+                    print(after_sales_status_list[i])
+                    goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i],
+                                    price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
+                    await insert_order_detail(pool, goods_params)
+                goods_index += num
+                order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time,
+                                payment_method_list[index], head_list[index][1], shop_id]
+                await insert_shop_clearing(pool, order_params)
+            await page.get_by_role("button", name="right").click()
         await context.close()
         await browser.close()
 
@@ -718,7 +739,8 @@ async def start_tasks():
     sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
-    sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
+    # sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
+    sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
     results = await exec_query(pool, sql)
     for result in results:
         phone_no = result.get('phone')
@@ -745,6 +767,7 @@ async def start_crawl(phone_no, sem, pool):
                 await handle_login(phone_no, pool)
                 shop_id = await handle_shop_info_crawl(phone_no, pool)
             await handle_score_info_crawl(shop_id, pool, phone_no)
+            # shop_id = '49271340'
             await shop_user_assets(shop_id, pool, phone_no)
             await shop_orders_info_crawl(shop_id, pool, phone_no)
             await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no)

@@ -80,19 +80,33 @@ def insert_verify_code(verify_code, phone):
     close_conn(conn, cursor)
 
 
-
+def insert_sms_content(sms_text, phone):
+    """
+    插入短信内容
+    :param sms_text:
+    :param phone:
+    :return:
+    """
+    conn, cursor = get_conn()
+    update_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sql = "insert into tkSmsReceiverInfos(smsContent, phone, updateTime) values(%s, %s, %s)"
+    cursor.execute(sql, (sms_text, phone, update_time))
+    conn.commit()
+    close_conn(conn, cursor)
 
 
 if __name__ == '__main__':
-    sql = "select * from tkShopBasicInfoDto"
+    # sql = "select * from tkShopBasicInfoDto"
     # 数据库名有：kScoreInfo，tkCounterpartsRank，userAssets，tkShopMonthlyBillInfos，tkShopDailyBillInfos，tkShopNoClearingInfos，tkShopClearingInfos
     # sql = "select * from kScoreInfo"
     # sql = "select * from tkCounterpartsRank"
     # sql = "select * from userAssets"
-    sql = "select * from tkVerifyCodeInfos"
+    # sql = "select * from tkVerifyCodeInfos"
+    sql = "select * from tkSmsReceiverInfos"
     # sql = "select * from tkShopDailyBillInfos"
     # sql = "select * from tkShopNoClearingInfos"
     # sql = "select * from tkShopClearingInfos"
-    insert_verify_code("7153", "16737229683")
+    # insert_verify_code("7153", "16737229683")
+    insert_sms_content("【抖店】您的验证码是7153，5分钟内有效。如非本人操作，请忽略本短信。", "16737229683")
     res = query(sql)
     print(res)
