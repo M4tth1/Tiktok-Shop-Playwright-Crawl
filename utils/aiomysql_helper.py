@@ -65,7 +65,7 @@ async def exec_query(pool, sql, *args):
             desc = cursor.description
             column = [col[0] for col in desc]
             res = [dict(zip(column, row)) for row in res]
-            return res
+    return res
 
 
 async def exec_query_atom(pool, sql, *args):

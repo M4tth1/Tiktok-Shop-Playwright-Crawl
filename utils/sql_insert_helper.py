@@ -445,6 +445,21 @@ async def insert_order_detail(pool, data):
             await conn.commit()
 
 
+async def insert_error_infos(pool, data):
+    sql = '''
+        INSERT INTO tkErrorInfos (
+        phone,
+        errorInfo,
+        updateTime
+        ) VALUES (%s, %s, %s)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
+
+
 # 测试插入的函数
 async def test_insert():
     pool = await create_pool()
