@@ -365,11 +365,13 @@ def create_tk_verify_code_infos():
     conn = Pool.connection()
     cursor = conn.cursor()
     # 限制phone为主键，且phone唯一
+    # 新增字段为smsContent，短信内容，类型为text
     sql = '''
     CREATE TABLE IF NOT EXISTS tkVerifyCodeInfos (
     phone VARCHAR(255),
     verifyCode VARCHAR(255),
     updateTime VARCHAR(255),
+    smsContent TEXT,
     PRIMARY KEY (phone)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -377,6 +379,37 @@ def create_tk_verify_code_infos():
     cursor.close()
     conn.close()
 
+
+def create_tk_sms_receiver_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    # 存储接受到的短信信息，不需要去重
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkSmsReceiverInfos (
+    phone VARCHAR(255),
+    smsContent TEXT,
+    updateTime VARCHAR(255)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
+# 新建一个运行错误原因表
+def create_tk_error_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkErrorInfos (
+    phone VARCHAR(255),
+    errorInfo TEXT,
+    updateTime VARCHAR(255)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
 
 
 # 删除上述创建的所有表
@@ -440,7 +473,9 @@ if __name__ == '__main__':
     # create_tk_shop_no_clearing_infos()
     # create_tk_shop_clearing_infos()
     # create_tk_order_detail_infos()
-    create_tk_verify_code_infos()
+    # create_tk_verify_code_infos()
+    # create_tk_sms_receiver_infos()
+    create_tk_error_infos()
     show_tables()
     describe_tables()
 
