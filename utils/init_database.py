@@ -411,6 +411,23 @@ def create_tk_error_infos():
     cursor.close()
     conn.close()
 
+# 新建一个存储进程pid的表，四个字段：id，phone_no, pid，is_alive，其中phone_no唯一
+def create_tk_pid_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkPidInfos (
+    phone VARCHAR(255),
+    pid INTEGER,
+    isAlive INTEGER,
+    updateTime VARCHAR(255),
+    PRIMARY KEY (phone)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
 
 # 删除上述创建的所有表
 def drop_table():
@@ -475,7 +492,8 @@ if __name__ == '__main__':
     # create_tk_order_detail_infos()
     # create_tk_verify_code_infos()
     # create_tk_sms_receiver_infos()
-    create_tk_error_infos()
+    # create_tk_error_infos()
+    create_tk_pid_infos()
     show_tables()
     describe_tables()
 
