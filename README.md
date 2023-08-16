@@ -6,7 +6,7 @@
 
 注：文档默认根目录为项目根目录
 
-1. 启动虚拟环境
+**1. 启动虚拟环境**
 
    ``` shell
    # 项目根目录打开cmd
@@ -14,11 +14,11 @@
    activate
    ```
 
-2. 修改config.ini文件
+**2. 修改config.ini文件**
 
    [![image-20230626112904923.png](https://i.postimg.cc/GtmTFMzZ/image-20230626112904923.png)](https://postimg.cc/bD4v897T)
 
-3. 启动爬虫
+**3. 启动爬虫**
 
    ``` shell
    python run_crawl.py
@@ -32,7 +32,7 @@
    - 在爬虫完成登录滑块验证阶段，手动填入表内验证码verifyCode和updateTime（最好两分钟内，格式"%Y-%m-%d %H:%M:%S")
    - 完成登录，进行后续爬取
 
-4. 开启flask webhook服务器用于接收验证码
+**4. 开启flask webhook服务器用于接收验证码**
 
 因验证码和爬虫在同一内网，暂未使用uwsgi和nginx部署
 
@@ -43,7 +43,7 @@ cd ./flask_webhook/
 flask run --host=0.0.0.0 --port=5000
 ```
 
-- 接收短信接口：
+- **接收短信接口：**
 
 URL：http://flask_webhook_ip:port/webhook
 
@@ -52,11 +52,11 @@ URL：http://flask_webhook_ip:port/webhook
 BODY: {"phone": "xxxxxxxxxxxx", "text": "xxxxxxxxxxxx"}
 
 
-5. 爬虫启动接口使用方法
+**5. 爬虫启动接口使用方法**
 
 在第4步启动flask webhook服务器后，提供两个接口启动与停止爬虫
 
-- 启动爬虫接口：
+- **启动爬虫接口：**
 
 URL：http://flask_webhook_ip:port/start_spider
 
@@ -66,7 +66,7 @@ BODY: {"phone": "xxxxxxxxxxxx"}
 
 注：当BODY为空时启动所有账号的爬虫
 
-- 停止爬虫接口：
+- **停止爬虫接口：**
 
 URL：http://flask_webhook_ip:port/stop_spider
 
