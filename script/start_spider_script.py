@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# @Time    : 2023/8/16 02:08
+# @Author  : fuganchen
+# @Site    : 
+# @File    : start_spider_script.py
+# @Project : tiktok_crawl
+# @Software: PyCharm
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # @Time    : 2023/5/1 13:31
 # @Author  : fuganchen
 # @Site    :
@@ -837,35 +848,7 @@ async def shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path):
             await insert_shop_month_bill(pool, param)
 
 
-def crawl_main():
-    """
-    爬取主函数
-    :return:
-    """
-    asyncio.run(start_tasks())
-
-
-async def start_tasks():
-    """
-    开始任务
-    :return:
-    """
-    tasks = []
-    concurrent_num = get_config('spider_config', 'concurrent_num')
-    sem = asyncio.Semaphore(int(concurrent_num))
-    # todo 并发数改到配置文件
-    pool = await create_pool()
-    # sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
-    sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
-    results = await exec_query(pool, sql)
-    for result in results:
-        phone_no = result.get('phone')
-        tasks.append(asyncio.wait_for(start_crawl(phone_no, sem, pool), timeout=1200))
-    task_list = await asyncio.gather(*tasks, return_exceptions=True)
-    await close_pool(pool)
-
-
-async def start_crawl(phone_no, sem, pool):
+async def start_crawl(phone_no):
     """
     开始爬取
     :param phone_no:
@@ -873,28 +856,31 @@ async def start_crawl(phone_no, sem, pool):
     :param pool:
     :return:
     """
-    async with sem:
-        storage_path = os.path.join(PROJECT_DIR, 'storage', phone_no + '.json')
-        if not os.path.exists(storage_path):
+    pool = await create_pool()
+    storage_path = os.path.join(PROJECT_DIR, 'storage', phone_no + '.json')
+    if not os.path.exists(storage_path):
+        await handle_login(phone_no, pool)
+    try:
+        shop_id = await handle_shop_info_crawl(phone_no, pool, storage_path)
+        if shop_id == '登录失效':
             await handle_login(phone_no, pool)
-        try:
             shop_id = await handle_shop_info_crawl(phone_no, pool, storage_path)
-            if shop_id == '登录失效':
-                await handle_login(phone_no, pool)
-                shop_id = await handle_shop_info_crawl(phone_no, pool, storage_path)
-            # await handle_score_info_crawl(shop_id, pool, phone_no, storage_path)
-            # shop_id = '49271340'
-            # await shop_user_assets(shop_id, pool, phone_no, storage_path)
-            await shop_orders_info_crawl(shop_id, pool, phone_no, storage_path)
-            await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, storage_path)
-            await shop_daily_bill_crawl(shop_id, pool, phone_no, storage_path)
-            await shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path)
-        except Exception as e:
-            error_msg = str(e)
-            error_params = [phone_no, error_msg, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
-            await insert_error_infos(pool, error_params)
-            traceback.print_exc()
+        # await handle_score_info_crawl(shop_id, pool, phone_no, storage_path)
+        # shop_id = '49271340'
+        # await shop_user_assets(shop_id, pool, phone_no, storage_path)
+        await shop_orders_info_crawl(shop_id, pool, phone_no, storage_path)
+        await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, storage_path)
+        await shop_daily_bill_crawl(shop_id, pool, phone_no, storage_path)
+        await shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path)
+    except Exception as e:
+        error_msg = str(e)
+        error_params = [phone_no, error_msg, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+        await insert_error_infos(pool, error_params)
+        traceback.print_exc()
+    await close_pool(pool)
 
 
-if __name__ == '__main__':
-    crawl_main()
+if __name__ == "__main__":
+    # 接收命令行参数
+    phone = sys.argv[1]
+    asyncio.run(start_crawl(phone))
