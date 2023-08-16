@@ -59,7 +59,7 @@ BODY: {"phone": "xxxxxxxxxxxx"}
 
 - 停止爬虫：
 
-URL：http://flask_webhook_ip:5000/start_spider
+URL：http://flask_webhook_ip:5000/stop_spider
 
 请求方式: POST
 
