@@ -43,6 +43,26 @@ cd ./flask_webhook/
 flask run --host=0.0.0.0 --port=5000
 ```
 
-注：
+5. 爬虫启动接口使用方法
 
-[![image-20230626115158981.png](https://i.postimg.cc/5NjFjRXz/image-20230626115158981.png)](https://postimg.cc/TpMP4Qq2)
+在第4步启动flask webhook服务器后，提供两个接口启动与停止爬虫
+
+- 启动爬虫：
+
+URL：http://flask_webhook_ip:5000/start_spider
+
+请求方式: POST
+
+BODY: {"phone": "xxxxxxxxxxxx"}
+
+注：当BODY为空时启动所有账号的爬虫
+
+- 停止爬虫：
+
+URL：http://flask_webhook_ip:5000/start_spider
+
+请求方式: POST
+
+BODY: {"phone": "xxxxxxxxxxxx"}
+
+注：当BODY为空时停止所有账号的爬虫
