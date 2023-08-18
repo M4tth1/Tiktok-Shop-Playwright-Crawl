@@ -438,11 +438,11 @@ def create_tk_pid_infos():
     conn.close()
 
 
-def create_tk_user_infos():
+def create_tk_bank_card_infos():
     conn = Pool.connection()
     cursor = conn.cursor()
     sql = '''
-    CREATE TABLE IF NOT EXISTS tkUserInfos (
+    CREATE TABLE IF NOT EXISTS tkBankCardInfos (
     phone VARCHAR(255),
     accountType VARCHAR(255),
     accountNo VARCHAR(255),
@@ -538,7 +538,7 @@ if __name__ == '__main__':
     # create_tk_sms_receiver_infos()
     # create_tk_error_infos()
     create_tk_pid_infos()
-    # create_tk_user_infos()
+    # create_tk_bank_card_infos()
     show_tables()
     describe_tables()
 
