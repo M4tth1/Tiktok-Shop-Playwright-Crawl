@@ -438,6 +438,35 @@ def create_tk_pid_infos():
     conn.close()
 
 
+def create_tk_user_infos():
+    conn = Pool.connection()
+    cursor = conn.cursor()
+    sql = '''
+    CREATE TABLE IF NOT EXISTS tkUserInfos (
+    phone VARCHAR(255),
+    accountType VARCHAR(255),
+    accountNo VARCHAR(255),
+    accountName VARCHAR(255),
+    accountDeadline VARCHAR(255),
+    bankName VARCHAR(255),
+    bankBranchName VARCHAR(255),
+    bankProvince VARCHAR(255),
+    bankCity VARCHAR(255),
+    bankCode VARCHAR(255),
+    bankCardType VARCHAR(255),
+    bankCardNo VARCHAR(255),
+    bankCardName VARCHAR(255),
+    bankCardPhone VARCHAR(255),
+    updateTime VARCHAR(255),
+    shopId VARCHAR(255),
+    FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
+    )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    '''
+    cursor.execute(sql)
+    cursor.close()
+    conn.close()
+
+
 # 删除上述创建的所有表
 def drop_table():
     conn = Pool.connection()
@@ -451,6 +480,12 @@ def drop_table():
     DROP TABLE IF EXISTS tkShopDailyBillInfos;
     DROP TABLE IF EXISTS tkShopNoClearingInfos;
     DROP TABLE IF EXISTS tkShopClearingInfos;
+    DROP TABLE IF EXISTS tkOrderDetailInfos;
+    DROP TABLE IF EXISTS tkVerifyCodeInfos;
+    DROP TABLE IF EXISTS tkSmsReceiverInfos;
+    DROP TABLE IF EXISTS tkErrorInfos;
+    DROP TABLE IF EXISTS tkPidInfos;
+    DROP TABLE IF EXISTS tkUserInfos;
     '''
     sql = '''
     DROP TABLE IF EXISTS tkOrderDetailInfos;
@@ -503,6 +538,7 @@ if __name__ == '__main__':
     # create_tk_sms_receiver_infos()
     # create_tk_error_infos()
     create_tk_pid_infos()
+    # create_tk_user_infos()
     show_tables()
     describe_tables()
 
