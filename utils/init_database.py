@@ -137,6 +137,7 @@ def create_tk_shop_basic_info():
     opeAdminName VARCHAR(255),
     usualIllegalPoints VARCHAR(255),
     opeAddress VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (shopId),
     UNIQUE (shopName)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -158,6 +159,7 @@ def create_k_score_info():
     logistics VARCHAR(255),
     scoreTime VARCHAR(255),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -181,6 +183,7 @@ def create_tk_counterparts_rank():
     updateTime VARCHAR(255),
     szDisputeRate VARCHAR(255),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -205,6 +208,7 @@ def create_user_assets():
     userCounts INTEGER,
     refundAmt DECIMAL(10, 2),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (shopId),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -228,6 +232,7 @@ def create_tk_shop_monthly_bill_infos():
     updateTime VARCHAR(255),
     beginBalance DECIMAL(10, 2),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -250,6 +255,7 @@ def create_tk_shop_daily_bill_infos():
     updateTime VARCHAR(255),
     beginBalance DECIMAL(10, 2),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''
@@ -289,6 +295,7 @@ def create_tk_shop_no_clearing_infos():
     preClearingDate VARCHAR(255),
     orderDate VARCHAR(255),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (orderNo),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -319,6 +326,7 @@ def create_tk_shop_clearing_infos():
     paymentMethod VARCHAR(255),
     orderDate VARCHAR(255),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     PRIMARY KEY (orderNo),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -353,6 +361,7 @@ def create_tk_order_detail_infos():
     name VARCHAR(255),
     category VARCHAR(255),
     shopId VARCHAR(255),
+    phone VARCHAR(255),
     FOREIGN KEY (shopId) REFERENCES tkShopBasicInfoDto(shopId)
     )ENGINE=InnoDB DEFAULT CHARSET=utf8;
     '''

@@ -266,7 +266,7 @@ async def handle_shop_info_crawl(phone_no, pool, storage_path):
         # todo excel中还有界面中未找到的数据，爬取的数据，需要补充
         params = [None, None, None, storage_shop_info_list[2], None, None, None, storage_shop_health_list[0], None,
                   None, storage_shop_info_list[0], storage_shop_info_list[1], None, storage_shopper_info_list[0],
-                  storage_shop_health_list[1], None]
+                  storage_shop_health_list[1], None, phone_no]
         await insert_shop_basic_info(pool, params)
         return storage_shop_info_list[0]
 
@@ -305,12 +305,13 @@ async def handle_score_info_crawl(shop_id, pool, phone_no, storage_path):
             update_time = (await update_time_selector.text_content()).split('更新时间')[1]
             score_params.append(update_time)
             score_params.append(shop_id)
+            score_params.append(phone_no)
             print(score_params)
         except Exception as e:
             error_msg = '服务体验分爬取失败'
             raise Exception(error_msg) from e
         total_compare_score = await (await page.query_selector('div.auxo-popover-inner-content')).text_content()
-        counter_params = [total_compare_score, None, None, None, None,update_time, None, shop_id]
+        counter_params = [total_compare_score, None, None, None, None,update_time, None, shop_id, phone_no]
         await insert_shop_score_info(pool, score_params)
         await insert_shop_counterparts_rank(pool, counter_params)
 
@@ -429,7 +430,7 @@ async def shop_user_assets(shop_id, pool, phone_no, storage_path):
                         exposure_num = int(num)  # 再将浮点数转为整数并转为字符串
             period = '30'
             params = [period, amount, average_amount, refund_user_num, user_num, visitor_num, exposure_num, refund_amount,
-                      shop_id]
+                      shop_id, phone_no]
             print(params)
             await insert_user_assets(pool, params)
             print('插入成功')
@@ -600,11 +601,11 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no, storage_path):
                     for i in range(goods_index, goods_index + num):
                         print(after_sales_status_list[i])
                         goods_params = [head_list[index][0], quantity_list[i], specification_list[i], update_time, tags_list[i],
-                                        price_list[i], after_sales_status_list[i], name_list[i], '', shop_id]
+                                        price_list[i], after_sales_status_list[i], name_list[i], '', shop_id, phone_no]
                         await insert_order_detail(pool, goods_params)
                     goods_index += num
                     order_params = [amount_list[index], head_list[index][0], order_status_list[index], update_time,
-                                    payment_method_list[index], head_list[index][1], shop_id]
+                                    payment_method_list[index], head_list[index][1], shop_id, phone_no]
                     await insert_shop_clearing(pool, order_params)
                 # await page.get_by_role("button", name="right").click()
                 await (await page.query_selector('span.anticon.anticon-right')).click()
@@ -687,7 +688,7 @@ async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, storage_path
                 params_list.append(
                     [payment_amt, pre_clear_amt, temp_params_list[0], temp_params_list[2], temp_params_list[1],
                      temp_params_list[3], temp_params_list[4], finish_date, update_time, temp_params_list[8], order_date,
-                     shop_id])
+                     shop_id, phone_no])
         except Exception as e:
             error_msg = '订单详情页爬取失败'
             raise Exception(error_msg) from e
@@ -756,7 +757,7 @@ async def shop_daily_bill_crawl(shop_id, pool, phone_no, storage_path):
                     money_list[index] = Decimal(value).quantize(Decimal('0.00'))
                 params.append(
                     [money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],
-                     shop_id])
+                     shop_id, phone_no])
         except Exception as e:
             error_msg = '待结算订单页面爬取失败'
             raise Exception(error_msg) from e
@@ -832,7 +833,7 @@ async def shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path):
                     money_list[index] = Decimal(value).quantize(Decimal('0.00'))
                 params.append(
                     [money_list[1], money_list[0], money_list[5], money_list[2], money_list[3], date, money_list[4],
-                     shop_id])
+                     shop_id, phone_no])
         except Exception as e:
             error_msg = '待结算订单页面爬取失败'
             raise Exception(error_msg) from e

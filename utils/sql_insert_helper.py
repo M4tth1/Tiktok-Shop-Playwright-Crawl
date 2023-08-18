@@ -77,9 +77,10 @@ async def insert_shop_basic_info(pool, data):
         opeAdminIdType,
         opeAdminName,
         usualIllegalPoints,
-        opeAddress
+        opeAddress,
+        phone
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
-        %s, %s, %s, %s, %s, %s, %s)
+        %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         tiktokBindStatus = VALUES(tiktokBindStatus),
         firmApproveStatus = VALUES(firmApproveStatus),
@@ -94,7 +95,8 @@ async def insert_shop_basic_info(pool, data):
         opeAdminIdType = VALUES(opeAdminIdType),
         opeAdminName = VALUES(opeAdminName),
         usualIllegalPoints = VALUES(usualIllegalPoints),
-        opeAddress = VALUES(opeAddress)
+        opeAddress = VALUES(opeAddress),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -123,14 +125,16 @@ async def insert_shop_score_info(pool, data):
         goods,
         logistics,
         scoreTime,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         total = VALUES(total),
         service = VALUES(service),
         goods = VALUES(goods),
         logistics = VALUES(logistics),
-        scoreTime = VALUES(scoreTime)
+        scoreTime = VALUES(scoreTime),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -162,8 +166,9 @@ async def insert_shop_counterparts_rank(pool, data):
         logistics,
         updateTime,
         szDisputeRate,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         total = VALUES(total),
         service = VALUES(service),
@@ -171,7 +176,8 @@ async def insert_shop_counterparts_rank(pool, data):
         goods = VALUES(goods),
         logistics = VALUES(logistics),
         updateTime = VALUES(updateTime),
-        szDisputeRate = VALUES(szDisputeRate)
+        szDisputeRate = VALUES(szDisputeRate),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -205,8 +211,9 @@ async def insert_user_assets(pool, data):
         visit,
         userCounts,
         refundAmt,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         period = VALUES(period),
         amount = VALUES(amount),
@@ -215,7 +222,8 @@ async def insert_user_assets(pool, data):
         userDealCounts = VALUES(userDealCounts),
         visit = VALUES(visit),
         userCounts = VALUES(userCounts),
-        refundAmt = VALUES(refundAmt)
+        refundAmt = VALUES(refundAmt),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -248,8 +256,9 @@ async def insert_shop_month_bill(pool, data):
         balanceChange,
         updateTime,
         beginBalance,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         totalIncome = VALUES(totalIncome),
         counts = VALUES(counts),
@@ -257,7 +266,8 @@ async def insert_shop_month_bill(pool, data):
         totalExpenses = VALUES(totalExpenses),
         balanceChange = VALUES(balanceChange),
         updateTime = VALUES(updateTime),
-        beginBalance = VALUES(beginBalance)
+        beginBalance = VALUES(beginBalance),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -290,8 +300,9 @@ async def insert_shop_daily_bill(pool, data):
         balanceChange,
         updateTime,
         beginBalance,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         totalIncome = VALUES(totalIncome),
         counts = VALUES(counts),
@@ -299,7 +310,8 @@ async def insert_shop_daily_bill(pool, data):
         totalExpenses = VALUES(totalExpenses),
         balanceChange = VALUES(balanceChange),
         updateTime = VALUES(updateTime),
-        beginBalance = VALUES(beginBalance)
+        beginBalance = VALUES(beginBalance),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -340,8 +352,9 @@ async def insert_shop_no_clearing(pool, data):
         updateTime,
         preClearingDate,
         orderDate,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         paymentAmt = VALUES(paymentAmt),
         preClearingAmt = VALUES(preClearingAmt),
@@ -352,7 +365,8 @@ async def insert_shop_no_clearing(pool, data):
         finishDate = VALUES(finishDate),
         updateTime = VALUES(updateTime),
         preClearingDate = VALUES(preClearingDate),
-        orderDate = VALUES(orderDate)
+        orderDate = VALUES(orderDate),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -384,14 +398,16 @@ async def insert_shop_clearing(pool, data):
         updateTime,
         paymentMethod,
         orderDate,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         amount = VALUES(amount),
         orderStatus = VALUES(orderStatus),
         updateTime = VALUES(updateTime),
         paymentMethod = VALUES(paymentMethod),
-        orderDate = VALUES(orderDate)
+        orderDate = VALUES(orderDate),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
@@ -427,8 +443,9 @@ async def insert_order_detail(pool, data):
         afterSalesStatus,
         name,
         category,
-        shopId
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        shopId,
+        phone
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
         quantity = VALUES(quantity),
         specification = VALUES(specification),
@@ -437,7 +454,8 @@ async def insert_order_detail(pool, data):
         price = VALUES(price),
         afterSalesStatus = VALUES(afterSalesStatus),
         name = VALUES(name),
-        category = VALUES(category)
+        category = VALUES(category),
+        phone = VALUES(phone)
         '''
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
