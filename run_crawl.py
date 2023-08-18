@@ -92,9 +92,11 @@ async def handle_login(phone_no, pool):
             error_msg = '操作发送验证码失败'
             raise Exception(error_msg) from e
         # 消息格式{'text': '8618810362350\n【抖店】验证码7153，用于手机验证码登录，5分钟内有效。验证码提供给他人可能导致账号被盗，请勿泄露，谨防被骗。\nSIM2_小米移动_16737229683\nSubId：9\n2023-06-13 01:40:11\nHUAWEI P20'}
-        for i in range(10):
+        for i in range(20):
             try:
+                await page.wait_for_load_state('networkidle')
                 await page.wait_for_selector(selector='img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx', timeout=10000)
+                print('出现滑块验证')
                 bg_xpath = await page.query_selector('img#captcha-verify-image.sc-gqjmRU.cHbGdz.sc-ifAKCX.itlNmx')
                 hx_xpath = await page.query_selector('img.captcha_verify_img_slide.react-draggable.sc-VigVT.ggNWOG')
                 bg_src = await bg_xpath.get_attribute('src')
@@ -105,8 +107,9 @@ async def handle_login(phone_no, pool):
                 box = await hx_xpath.bounding_box()
                 bg_box = await bg_xpath.bounding_box()
                 bg_length = bg_box["width"]
-                # todo 加一个失败重试机制
+                # todo 加一个鼠标自然移动到方块的功能
                 await page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+                await page.wait_for_timeout(5000)
                 await page.mouse.down()
                 x = box["x"] + box["width"] / 2
                 y = box["y"] + box["height"] / 2
@@ -120,17 +123,21 @@ async def handle_login(phone_no, pool):
                 # 移动结束鼠标抬起
                 await page.wait_for_timeout(500)
                 await page.mouse.up()
-                is_failure = await (await page.query_selector('div.account-center-code-captcha.disable.active')).text_content()
-                print(is_failure)
-                if 'S' in is_failure or '重新' in is_failure:
-                    break
+                if await page.query_selector('div.account-center-code-captcha.disable.active'):
+                    is_failure = await (await page.query_selector('div.account-center-code-captcha.disable.active')).text_content()
+                    print('is_failure', is_failure)
+                    if 'S' in is_failure or '重新' in is_failure:
+                        break
+                refresh_button = await page.query_selector('span.secsdk_captcha_refresh--text.sc-bwzfXH.gBXrMn')
+                if refresh_button:
+                    await refresh_button.click()
             except Exception as e:
                 if i == 0:
+                    traceback.print_exc()
                     # 未出现滑块验证
                     break
-                await page.wait_for_timeout(1000)
+                await page.wait_for_timeout(3000)
                 print(traceback.format_exc())
-                print(e)
                 if i == 9:
                     error_msg = '滑块验证失败'
                     raise Exception(error_msg) from e
@@ -855,8 +862,8 @@ async def start_tasks():
     sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
-    # sql = ' select phone from tkVerifyCodeInfos where phone="18810362350";'
-    sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
+    sql = ' select phone from tkVerifyCodeInfos where phone="13720344393";'
+    # sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
     results = await exec_query(pool, sql)
     for result in results:
         phone_no = result.get('phone')

@@ -103,19 +103,25 @@ def get_track_old(hx_path, bg_path, bg_length):  # distance为传入的总距离
     # 当前位移
     current = 0
     # 减速阈值
-    mid = distance * 4 / 5
+    param1 = random.randint(5, 10)
+    param2 = random.randint(4, param1)
+    # param3为0到1间小数
+    param3 = 0.1
+    mid = distance * param2 / param1
     # 计算间隔
-    t = 0.2
+    t = param3
     # 初速度
     v = 1
-
+    param4 = random.randint(4, 6)
+    # param5为负数
+    param5 = random.randint(-param4, -2)
     while current < distance:
         if current < mid:
             # 加速度为2
-            a = 4
+            a = param4
         else:
             # 加速度为-2
-            a = -3
+            a = -2
         v0 = v
         # 当前速度
         v = v0 + a * t
