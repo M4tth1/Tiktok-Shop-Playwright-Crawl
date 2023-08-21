@@ -21,7 +21,7 @@ from opencv_test import get_notch_location, get_track, get_slide_track, get_trac
 from utils.get_ini_config import get_config
 from utils.sql_insert_helper import insert_shop_basic_info, insert_shop_score_info, insert_user_assets, \
     insert_shop_counterparts_rank, insert_shop_month_bill, insert_shop_daily_bill, insert_shop_no_clearing, \
-    insert_shop_clearing, create_pool, close_pool, insert_order_detail, insert_error_infos
+    insert_shop_clearing, create_pool, close_pool, insert_order_detail, insert_error_infos, insert_bank_infos
 from utils.aiomysql_helper import exec_query, exec_query_atom
 from constant import PROJECT_DIR
 
@@ -258,6 +258,7 @@ async def handle_shop_info_crawl(phone_no, pool, storage_path):
         except Exception as e:
             error_msg = '店铺健康分爬取失败'
             raise Exception(error_msg) from e
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         await context.close()
         await browser.close()
         print(storage_shop_info_list)
@@ -612,6 +613,7 @@ async def shop_orders_info_crawl(shop_id, pool, phone_no, storage_path):
         except Exception as e:
             error_msg = '订单详情页爬取失败'
             raise Exception(error_msg) from e
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         await context.close()
         await browser.close()
 
@@ -692,6 +694,7 @@ async def shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, storage_path
         except Exception as e:
             error_msg = '订单详情页爬取失败'
             raise Exception(error_msg) from e
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         await context.close()
         await browser.close()
         for param in params_list:
@@ -762,6 +765,7 @@ async def shop_daily_bill_crawl(shop_id, pool, phone_no, storage_path):
             error_msg = '待结算订单页面爬取失败'
             raise Exception(error_msg) from e
         await page.wait_for_timeout(2000)
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         await context.close()
         await browser.close()
         for param in params:
@@ -838,12 +842,115 @@ async def shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path):
             error_msg = '待结算订单页面爬取失败'
             raise Exception(error_msg) from e
             # order_payment_info_text = await (await monthly_bill_info.query_selector('td.auxo-table-cell')).text_content()
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
         await context.close()
         await browser.close()
         for param in params:
             print(param)
             await insert_shop_month_bill(pool, param)
 
+
+async def bank_card_info_crawl(shop_id, pool, phone_no, storage_path):
+    # 待结算订单详情
+    # todo 待结算时间选取
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(storage_state=storage_path)
+        page = await context.new_page()
+        try:
+            await page.goto('https://fxg.jinritemai.com/ffa/p/accountCenter')
+        except Exception as e:
+            error_msg = '订单详情页加载失败'
+            raise Exception(error_msg) from e
+        try:
+            await page.locator('text="退出引导"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无引导')
+        try:
+            await page.locator('text="知道了"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无知道了弹窗')
+        try:
+            await page.locator('text="我已知悉"').click(timeout=4000)
+            await page.wait_for_load_state('networkidle')
+        except:
+            print('无我已知悉弹窗')
+        for i in range(2):
+            try:
+                await page.get_by_role("button", name="知道了").click(timeout=2000)
+                await page.wait_for_load_state('networkidle')
+            except:
+                print('无知道了弹窗')
+        params = list()
+        total_block_list = await page.query_selector_all('div._OHpzKtI1nMOXLfOu4dX ')
+        if total_block_list:
+            for block in total_block_list:
+                block_title = await block.query_selector('div.ZZVn4jxZwJboqZEfzfQg')
+                block_title_text = await block_title.text_content()
+                if '聚合支付账户' in block_title_text:
+                    detail_button = await block.query_selector('i.Lh9D2rIQWoUKWgQYyGAA.BWWFoMBXygsw3w5FgueJ')
+                    await detail_button.click()
+                    await page.wait_for_selector('div.ant-row.ant-form-item')
+                    bank_block_list = await page.query_selector_all('div.ant-row.ant-form-item')
+                    if bank_block_list:
+                        for bank_block in bank_block_list:
+                            # print('bank_block', await bank_block.text_content())
+                            bank_info_label = await bank_block.query_selector('div.ant-col.ant-form-item-label')
+                            if not bank_info_label:
+                                continue
+                            bank_info_label_text = await bank_info_label.text_content()
+                            bank_info = await bank_block.query_selector('div.ant-col.ant-form-item-control')
+                            bank_info_text = await bank_info.text_content()
+                            if '账户类型' in bank_info_label_text:
+                                check_box_list = await bank_block.query_selector_all('label.ant-radio-wrapper.ant-radio-wrapper-checked')
+                                for check_box in check_box_list:
+                                    # check_box_value = await (await check_box.query_selector('input')).get_attribute('checked')
+                                    # if check_box_value:
+                                    check_box_value = await check_box.query_selector('span.ant-radio.ant-radio-checked')
+                                    if check_box_value:
+                                        bank_info_text = await check_box.text_content()
+                                        if bank_info_text in ['对公', '对私']:
+                                            bank_card_type = bank_info_text
+                                        if bank_info_text in ['法人', '负责人']:
+                                            account_type = bank_info_text
+                            if '银行卡号' in bank_info_label_text:
+                                bank_info = await bank_block.query_selector('input#bankNo.ant-input')
+                                # bank_info = await bank_block.query_selector('span.ant-input-affix-wrapper')
+                                bank_info_text = await bank_info.get_attribute('value')
+                                bank_card_no = bank_info_text
+                            if '银行预留手机号' in bank_info_label_text:
+                                bank_info = await bank_block.query_selector('input#bankMobile.ant-input')
+                                bank_info_text = await bank_info.get_attribute('value')
+                                bank_card_phone = bank_info_text
+                            if '手机号' in bank_info_label_text:
+                                bank_info = await bank_block.query_selector('input')
+                                bank_info_text = await bank_info.get_attribute('value')
+                                manager_phone = bank_info_text
+                            if '邮箱' in bank_info_label_text:
+                                bank_info = await bank_block.query_selector('input')
+                                bank_info_text = await bank_info.get_attribute('value')
+                                manager_email = manager_phone
+                            if '证件号码' in bank_info_label_text:
+                                account_no = bank_info_text
+                            if '开户名称' in bank_info_label_text:
+                                account_name = bank_info_text
+                            if '开户行' in bank_info_label_text:
+                                bank_name = bank_info_text
+                            if '开户支行' in bank_info_label_text:
+                                bank_branch_name = bank_info_text
+                            if '银行地址' in bank_info_label_text:
+                                bank_province = bank_info_text
+                                bank_city = bank_info_text
+                            # print(bank_info_label_text, bank_info_text)
+                    params = [phone_no, account_type, account_no, account_name, '', bank_name, bank_branch_name, bank_province, bank_city, '', bank_card_type, bank_card_no, '', bank_card_phone, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), shop_id]
+                    await insert_bank_infos(pool, params)
+        else:
+            print('无聚合支付页面')
+        storage = await context.storage_state(path=r'.\storage\{}.json'.format(phone_no))
+        await context.close()
+        await browser.close()
 
 def crawl_main():
     """
@@ -863,8 +970,8 @@ async def start_tasks():
     sem = asyncio.Semaphore(int(concurrent_num))
     # todo 并发数改到配置文件
     pool = await create_pool()
-    sql = ' select phone from tkVerifyCodeInfos where phone="13720344393";'
-    # sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
+    # sql = ' select phone from tkVerifyCodeInfos where phone="13147427719";'
+    sql = ' select phone from tkVerifyCodeInfos order by updateTime ; '
     results = await exec_query(pool, sql)
     for result in results:
         phone_no = result.get('phone')
@@ -890,13 +997,14 @@ async def start_crawl(phone_no, sem, pool):
             if shop_id == '登录失效':
                 await handle_login(phone_no, pool)
                 shop_id = await handle_shop_info_crawl(phone_no, pool, storage_path)
-            # await handle_score_info_crawl(shop_id, pool, phone_no, storage_path)
+            await handle_score_info_crawl(shop_id, pool, phone_no, storage_path)
             # shop_id = '49271340'
-            # await shop_user_assets(shop_id, pool, phone_no, storage_path)
+            await shop_user_assets(shop_id, pool, phone_no, storage_path)
             await shop_orders_info_crawl(shop_id, pool, phone_no, storage_path)
             await shop_not_clear_orders_info_crawl(shop_id, pool, phone_no, storage_path)
             await shop_daily_bill_crawl(shop_id, pool, phone_no, storage_path)
             await shop_monthly_bill_crawl(shop_id, pool, phone_no, storage_path)
+            await bank_card_info_crawl(shop_id, pool, phone_no, storage_path)
         except Exception as e:
             error_msg = str(e)
             error_params = [phone_no, error_msg, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')]

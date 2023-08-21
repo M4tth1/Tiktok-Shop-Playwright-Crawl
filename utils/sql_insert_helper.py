@@ -477,6 +477,32 @@ async def insert_error_infos(pool, data):
             await conn.commit()
 
 
+async def insert_bank_infos(pool, data):
+    sql = '''
+        INSERT INTO tkBankCardInfos (
+        phone,
+        accountType,
+        accountNo,
+        accountName,
+        accountDeadline,
+        bankName,
+        bankBranchName,
+        bankProvince,
+        bankCity,
+        bankCode,
+        bankCardType,
+        bankCardNo,
+        bankCardName,
+        bankCardPhone,
+        updateTime,
+        shopId
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(sql, data)
+            await conn.commit()
+
 
 # 测试插入的函数
 async def test_insert():

@@ -537,8 +537,8 @@ if __name__ == '__main__':
     # create_tk_verify_code_infos()
     # create_tk_sms_receiver_infos()
     # create_tk_error_infos()
-    create_tk_pid_infos()
-    # create_tk_bank_card_infos()
+    # create_tk_pid_infos()
+    create_tk_bank_card_infos()
     show_tables()
     describe_tables()
 
